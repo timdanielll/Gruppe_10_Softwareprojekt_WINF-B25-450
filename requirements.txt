@@ -1,0 +1,6 @@
+# Abhaengigkeiten des WI Fanshop
+# sqlite3 und tkinter sind bereits Teil der Python-Standardbibliothek.
+
+customtkinter>=5.2      # modernes GUI-Framework (Pflichtenheft Kapitel 5.1)
+Pillow>=10.0            # Laden der Artikelbilder fuer die GUI
+matplotlib>=3.8         # Diagramme im Berichtswesen (/F26/, /F27/, Kann-Kriterium)

@@ -1,0 +1,19 @@
+# created by virtualenv automatically
+# Datenbank wird beim ersten Start automatisch erzeugt und gehoert nicht ins Repository
+fanshop.db
+*.db-journal
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editoren / Betriebssystem
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Aus den PDFs extrahierter Rohtext (nur Arbeitsmaterial)
+docs/*.txt
