@@ -1,4 +1,3 @@
-# created by virtualenv automatically
 # Datenbank wird beim ersten Start automatisch erzeugt und gehoert nicht ins Repository
 fanshop.db
 *.db-journal
