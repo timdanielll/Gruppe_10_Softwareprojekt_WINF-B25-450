@@ -37,13 +37,20 @@ Alle Tabellen entsprechen Kapitel 6 des Pflichtenhefts. **Drei Abweichungen**
   Fremdschlüssel sonst **nicht**.
 - `row_factory = sqlite3.Row` erlaubt `zeile["titel"]` statt `zeile[2]`.
 - `CREATE TABLE IF NOT EXISTS` — ein zweiter Programmstart löscht nichts.
+- `Datenbank._schema_nachziehen()` ergänzt beim Start Spalten, die es in
+  älteren Datenbankdateien noch nicht gab (`kunde.starterset_erhalten`,
+  `bestellung.starterset_ausgegeben`), und stellt das Sammelalbum auf die Regel
+  „jeder Sticker einmalig" um. `CREATE TABLE IF NOT EXISTS` allein würde
+  bestehende Tabellen unverändert lassen — eine benutzte `fanshop.db` müsste
+  sonst gelöscht werden.
 - `Datenbank.transaktion()` ist ein Kontextmanager: entweder alle Schreibbefehle
   im `with`-Block gelingen, oder SQLite macht alle rückgängig (/NF30/).
 
 ## Test
 
 `tests/test_datenbank.py` — Schema anlegen, doppeltes Anlegen ist harmlos,
-Fremdschlüssel sind aktiv, Transaktion rollt bei einem Fehler zurück.
+Fremdschlüssel sind aktiv, Transaktion rollt bei einem Fehler zurück, und eine
+Datenbank im alten Format wird beim Start sauber nachgezogen.
 
 ## Nächster Schritt
 

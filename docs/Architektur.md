@@ -196,10 +196,10 @@ den „tatsächlich gezahlten Einzelpreis" — genau das ist damit erfüllt.
 ### 5.3 Ein Kauf ist eine Transaktion
 
 `BestellRepository.kauf_verbuchen()` schreibt in einem einzigen `with`-Block:
-Bestellung, alle Positionen, Lagerabgang, Sticker-Gutschrift und den Verbrauch
-des Newsletter-Gutscheins.
+Bestellung, alle Positionen, Lagerabgang, Sticker-Gutschrift, die einmalige
+Starterset-Gutschrift (/F53/) und den Verbrauch des Newsletter-Gutscheins.
 
-Das ist bewusst **eine** Methode und nicht fünf Aufrufe. Bei fünf getrennten
+Das ist bewusst **eine** Methode und nicht sechs Aufrufe. Bei fünf getrennten
 Aufrufen könnte nach einem Absturz eine Bestellung existieren, deren Ware nie
 aus dem Lager gebucht wurde. /NF30/ verlangt genau das Gegenteil: entweder alles
 oder nichts.
@@ -252,6 +252,7 @@ Zeichnen nach.
    newsletter_aktiv      │        erstellungsdatum, aktiv
    newsletter_rabatt_…   │        groesse, bildpfad
    sticker_kontostand    │              ▲          ▲
+   starterset_erhalten   │              │          │
                          │              │          │
    bestellung            │              │          │
    ──────────            │              │          │
@@ -261,6 +262,7 @@ Zeichnen nach.
    gesamtbetrag                         │          │
    newsletter_rabatt_angewendet         │          │
    sticker_ausgegeben                   │          │
+   starterset_ausgegeben                │          │
       ▲            ▲                    │          │
       │            │                    │          │
    bestellposition │                 retoure       │
@@ -281,7 +283,7 @@ Zeichnen nach.
    ─────────────
    kundennummer (PK, FK, ON DELETE CASCADE)
    motiv        (PK)  Schluessel aus modelle/sticker.py
-   anzahl
+   anzahl             immer 1 - jedes Motiv gibt es nur einmal
 ```
 
 **Stammdaten:** `kunde`, `artikel`, `sonderaktion`
@@ -301,7 +303,7 @@ Diese Trennung verlangt das Lastenheft ausdrücklich.
 
 ## 7. Abweichungen vom Pflichtenheft
 
-Drei Punkte gehen über Kapitel 6 des Pflichtenhefts hinaus. Alle drei sind
+Fünf Punkte gehen über Kapitel 6 des Pflichtenhefts hinaus. Alle sind
 Ergänzungen — es wurde nichts weggelassen.
 
 | Abweichung | Warum |
@@ -310,6 +312,7 @@ Ergänzungen — es wurde nichts weggelassen.
 | Spalte `artikel.bildpfad` | Verweist auf das Produktfoto in `assets/artikel/`. Das Pflichtenheft nennt die Produktbilder des htw-saar-Webshops als Quelle, sieht aber kein Feld dafür vor. |
 | Tabelle `sonderaktion` | Das Lastenheft fordert „fest definierte Spezialangebote, die aktiviert werden können". Ohne Tabelle würde der Aktivierungsstatus einen Programmneustart nicht überleben. |
 | Tabelle `kunde_sticker` | Das Pflichtenheft zählt Sticker nur (`sticker_kontostand`). Im Assets-Ordner liegen aber sechs verschiedene Motive. Ohne diese Tabelle weiß das System nicht, *welche* ein Kunde besitzt — und /F53/ wäre ein Zähler statt einer Sammlung. Details in [`../specs/09-sticker.md`](../specs/09-sticker.md). |
+| Spalten `kunde.starterset_erhalten` und `bestellung.starterset_ausgegeben` | Das Starterset-Sonderangebot (Stift, Block, Jutebeutel ab drei Einkäufen mit voller Sammlung) gibt es **einmal je Kunde**. Ohne diese Flags ließe sich weder die Sperre durchsetzen noch nachvollziehen, welcher Bestellung das Set beilag. Details in [`../specs/09-sticker.md`](../specs/09-sticker.md). |
 
 Zusätzlich weist der Bericht neben dem geforderten Umsatz (/F312/) auch
 **Erstattungen** und **Nettoumsatz** aus. Ein Bericht, der nur den Bruttoumsatz
@@ -398,7 +401,8 @@ gesetzt werden müssen.
 | Neue Seite | Klasse von `BasisSeite` ableiten und in `gui/app.py` eintragen |
 | Neue Zugangsart | `zugriff.py` ergänzen und den Seitenaufbau in `gui/app.py` prüfen |
 | Neuer Schritt in der Kasse | `SCHRITT_*`-Konstante, `_schritt_X_bauen()` und ein Eintrag in `self.schritte` in `gui/seite_kasse.py` |
-| Neues Stickermotiv | Bild nach `assets/sticker/`, Eintrag in `MOTIVE` in `modelle/sticker.py` |
+| Neues Stickermotiv | Bild nach `assets/sticker/`, Eintrag in `MOTIVE` in `modelle/sticker.py`. Achtung: `STICKER_PRO_EINKAUF` × `STARTERSET_MINDESTBESTELLUNGEN` sollte weiterhin der Zahl der Motive entsprechen |
+| Anderer Setinhalt oder andere Bedingung | `STARTERSET_INHALT` bzw. `STARTERSET_MINDESTBESTELLUNGEN` in `konfiguration.py` |
 | Farbe ändern | zuerst `DESIGN.md`, dann `design.py` und `htw_saar_theme.json` — beide Modi im selben Farbpaar |
 
 Die Reihenfolge ist immer dieselbe: von unten nach oben durch die Schichten.

@@ -20,7 +20,7 @@ Rechenlogik oder SQL in die GUI wandert.
 | `fanshop/zugriff.py` | Seitenzuordnung für Kunde und Kassierer — ohne GUI-Abhängigkeit |
 | `gui/app.py` | Rollenauswahl, Hauptfenster und rollenabhängige Navigation |
 | `gui/seite_kasse.py` | /F11/–/F14/, /F52/, /F53/ — als Wizard mit vier Schritten |
-| `gui/seite_artikel.py` | /F21/–/F23/ plus Schalten der Sonderaktionen |
+| `gui/seite_artikel.py` | /F21/–/F23/ plus Schalten der Sonderaktionen und der Hinweis auf das dauerhafte Starterset-Sonderangebot (/F53/) |
 | `gui/seite_kunden.py` | /F41/–/F44/, /F52/ |
 | `gui/seite_retouren.py` | /F51/ |
 | `gui/seite_berichte.py` | /F31/–/F313/, /F24/–/F27/ |

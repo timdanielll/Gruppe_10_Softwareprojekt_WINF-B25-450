@@ -14,7 +14,7 @@ Die einzige Stelle im Programm, an der SQL steht.
 |---|---|---|
 | `basis_repository.py` | — | `anzahl`, `existiert`, `loeschen` |
 | `artikel_repository.py` | `artikel` | `speichern`, `suchen`, `deaktivieren`, `umsatzstaerkste`, `haeufigste` |
-| `kunden_repository.py` | `kunde`, `kunde_sticker` | `speichern`, `suchen`, `loeschen_und_anonymisieren`, `newsletter_setzen`, `sticker_album` |
+| `kunden_repository.py` | `kunde`, `kunde_sticker` | `speichern`, `suchen`, `loeschen_und_anonymisieren`, `newsletter_setzen`, `sticker_album`, `starterset_erhalten` |
 | `bestell_repository.py` | `bestellung`, `bestellposition`, `retoure` | `kauf_verbuchen`, `retoure_verbuchen`, `positionen_zu` |
 | `bericht_repository.py` | Auswertungen | `kennzahlen`, `umsatzanteile`, `umsatz_je_kategorie` |
 | `sonderaktion_repository.py` | `sonderaktion` | `aktive`, `aktivieren` |
@@ -25,7 +25,7 @@ Die einzige Stelle im Programm, an der SQL steht.
 Tabellen — in **einer** Transaktion.
 
 Warum nicht sauber pro Tabelle trennen? Weil ein Kauf für die Datenbank ein
-einziger Vorgang ist: Bestellung, Positionen, Lagerabgang, Sticker und
+einziger Vorgang ist: Bestellung, Positionen, Lagerabgang, Sticker, Starterset und
 Gutschein gehören zusammen. Bei getrennten Aufrufen könnte nach einem Absturz
 eine Bestellung existieren, deren Ware nie aus dem Lager gebucht wurde. Genau
 das verbietet /NF30/.

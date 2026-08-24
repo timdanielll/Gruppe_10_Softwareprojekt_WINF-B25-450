@@ -38,7 +38,7 @@ korrekt angezeigt werden.
 | Datei | Zeilen | Inhalt |
 |---|---|---|
 | `main.py` | 35 | Startpunkt: Design laden → `Anwendung` bauen → Fenster mit Rollenauswahl öffnen |
-| `fanshop/konfiguration.py` | 52 | Pfade, die sieben Kategorien, Größen, Rabattsätze, Stickeranzahl |
+| `fanshop/konfiguration.py` | 67 | Pfade, die sieben Kategorien, Größen, Rabattsätze, Stickeranzahl, Starterset |
 | `fanshop/fehler.py` | 29 | `FanshopFehler` und die drei Unterklassen |
 | `fanshop/hilfsmittel.py` | 109 | `euro()`, `prozent()`, Datumsumwandlung, `zahl_aus_text()` |
 | `fanshop/zugriff.py` | 14 | erlaubte Seitenschlüssel für `kunde` und `kassierer`; ohne GUI testbar |
@@ -75,7 +75,8 @@ with datenbank.transaktion() as verb: ... # alles oder nichts (/NF30/)
 | `bestellung.py` | `Bestellung`, `Bestellposition` | `kunde_anzeige` fängt gelöschte Kunden ab |
 | `retoure.py` | `Retoure` | — |
 | `sonderaktion.py` | `Sonderaktion` | zwei Arten: `kategorie`, `mindestwert` |
-| `sticker.py` | `Stickermotiv`, `MOTIVE` | sechs Sammelmotive, Vergabe reihum (/F53/) |
+| `sticker.py` | `Stickermotiv`, `MOTIVE` | sechs Sammelmotive, zwei pro Kauf, reihum und jedes nur einmal (/F53/) |
+| `starterset.py` | `INHALT`, `anspruch_besteht()` | das Sonderangebot: Stift, Block, Jutebeutel ab drei Einkäufen mit voller Sammlung (/F53/) |
 | `warenkorb.py` | `Warenkorb`, `WarenkorbPosition`, `Preisuebersicht` | **die gesamte Rabattrechnung** |
 
 Jede Klasse hat dasselbe Umwandlungspaar:
@@ -89,8 +90,8 @@ Jede Klasse hat dasselbe Umwandlungspaar:
 | `basis_repository.py` | — | `anzahl`, `existiert`, `loeschen` |
 | `artikel_repository.py` | `artikel` | `speichern`, `suchen`, `deaktivieren`, `umsatzstaerkste`, `haeufigste` |
 | `kunden_repository.py` | `kunde` | `speichern`, `suchen`, `loeschen_und_anonymisieren`, `newsletter_setzen` |
-| `bestell_repository.py` | 3 Tabellen | `kauf_verbuchen`, `retoure_verbuchen`, `positionen_zu`, `bereits_retourniert` |
-| (in `kunden_repository.py`) | `kunde_sticker` | `sticker_album` |
+| `bestell_repository.py` | 3 Tabellen | `kauf_verbuchen`, `retoure_verbuchen`, `positionen_zu`, `bereits_retourniert`, `anzahl_bestellungen` |
+| (in `kunden_repository.py`) | `kunde_sticker` | `sticker_album`, `starterset_erhalten` |
 | `bericht_repository.py` | Auswertungen | `kennzahlen`, `umsatzanteile`, `umsatz_je_kategorie` |
 | `sonderaktion_repository.py` | `sonderaktion` | `aktive`, `aktivieren` |
 
@@ -100,7 +101,7 @@ Jede Klasse hat dasselbe Umwandlungspaar:
 |---|---|---|
 | `anwendung.py` | `Anwendung` | steckt alle Schichten zusammen |
 | `artikel_service.py` | `ArtikelService` | Sortiment: prüfen, anlegen, pflegen, suchen |
-| `kunden_service.py` | `KundenService` | Kartei und Newsletter |
+| `kunden_service.py` | `KundenService`, `StartersetStand` | Kartei, Newsletter, Sammel- und Starterset-Stand |
 | `kassen_service.py` | `KassenService`, `Kaufbeleg` | der Kassiervorgang |
 | `retouren_service.py` | `RetourenService` | Rückgaben |
 | `bericht_service.py` | `BerichtService`, `Bericht` | Auswertungen und Zeiträume |
@@ -116,7 +117,7 @@ Jede Klasse hat dasselbe Umwandlungspaar:
 | `basis_seite.py` | 96 | `BasisSeite` — Basisklasse, Statuszeile, `melden()` |
 | `app.py` | 258 | Rollenauswahl, rollenabhängiger Seitenaufbau, Navigation, Logo je Modus, Hell/Dunkel |
 | `seite_kasse.py` | 764 | Kasse als Wizard mit vier Schritten |
-| `seite_artikel.py` | 457 | Sortiment, Produktfoto-Auswahl, Sonderaktionen |
+| `seite_artikel.py` | 470 | Sortiment, Produktfoto-Auswahl, Sonderaktionen, Hinweis auf das dauerhafte Starterset-Sonderangebot |
 | `seite_kunden.py` | 322 | Kunden |
 | `seite_retouren.py` | 274 | Retouren |
 | `seite_berichte.py` | 352 | Berichte |
@@ -203,21 +204,27 @@ kassen_service.kauf_abschliessen()
    ├── 1. Warenkorb leer?                   → ValidierungsFehler
    ├── 2. _bestand_erneut_pruefen()         → BestandsFehler
    ├── 3. preisuebersicht()                 → Preisuebersicht
-   ├── 4. sticker.motive_fuer_kauf(kontostand)  → drei Motive (/F53/)
+   ├── 4. _praemien_bestimmen()             → bis zu 2 fehlende Motive (/F53/)
+   │        • sticker.offene_motive(album)   → nie ein Motiv doppelt
+   │        • starterset.anspruch_besteht()  → Set fällig? (3 Käufe + volles Album)
    ├── 5. bestell_repository.kauf_verbuchen()  ← EINE Transaktion:
-   │        • INSERT bestellung
+   │        • INSERT bestellung (mit sticker_ausgegeben, starterset_ausgegeben)
    │        • INSERT bestellposition (je Position)
    │        • UPDATE artikel  SET lagerbestand = lagerbestand − menge
-   │        • UPDATE kunde    SET sticker_kontostand = … + 3
-   │        • INSERT kunde_sticker (je Motiv, ON CONFLICT → anzahl + 1)
+   │        • UPDATE kunde    SET sticker_kontostand = … + Zahl der Motive
+   │        • INSERT kunde_sticker (je Motiv, ON CONFLICT → DO NOTHING)
+   │        • UPDATE kunde    SET starterset_erhalten = 1  (nur wenn noch 0)
    │        • UPDATE kunde    SET newsletter_rabatt_verfuegbar = 0
    ├── 6. Warenkorb leeren, Gutschein-Haken zurücksetzen
-   └── 7. Kaufbeleg zurückgeben (Bestellnummer, Summen, Motive, Albumstand)
+   └── 7. Kaufbeleg zurückgeben (Bestellnummer, Summen, Motive, Albumstand,
+          Starterset)
 ```
 
-Danach zeigt die GUI den Sticker-Dialog: die **drei Motive** als Bilder mit
-Titel und darunter „Sammlung: 4 von 6 Motiven". Warum drei verschiedene und
-nicht dreimal dasselbe — siehe [`../specs/09-sticker.md`](../specs/09-sticker.md).
+Danach zeigt die GUI den Sticker-Dialog: die **zwei Motive** als Bilder mit
+Titel und darunter „Sammlung: 4 von 6 Motiven". Ist die Sammlung damit voll,
+steht der Hinweis auf das **Starterset** (Stift, Block, Jutebeutel) mit dabei.
+Warum zwei verschiedene, jedes nur einmal, und warum das Set keine schaltbare
+Sonderaktion ist — siehe [`../specs/09-sticker.md`](../specs/09-sticker.md).
 
 ### 3.5 Eine Retoure wird gebucht (/F51/)
 
@@ -303,7 +310,7 @@ Bericht „vom 1. bis 1. August" leer.
 |---|---|---|---|
 | /F51/ | Retourenabwicklung | `RetourenService`, `BestellRepository.retoure_verbuchen()` | `test_retouren_und_berichte.py` |
 | /F52/ | Newsletter und Rabatt | `KundenRepository.newsletter_setzen()`, `Warenkorb.berechne()` | `test_kasse.py` |
-| /F53/ | Sticker-Sammelsystem *(Kann)* | `modelle/sticker.py`, Tabelle `kunde_sticker`, `kauf_verbuchen()`; GUI: Sticker-Dialog und Album in der Kartei | `test_sticker.py` |
+| /F53/ | Sticker-Sammelsystem *(Kann)* | `modelle/sticker.py`, `modelle/starterset.py`, Tabelle `kunde_sticker`, Spalten `kunde.starterset_erhalten` / `bestellung.starterset_ausgegeben`, `kauf_verbuchen()`; GUI: Sticker-Dialog mit Starterset-Hinweis, Album und Starterset-Stand in der Kartei, Dauerangebot im Sortiment | `test_sticker.py`, `test_starterset.py` |
 | /F54/ | Dark-Mode *(Kann)* | `design.modus_umschalten()`, `app._modus_gewaehlt()`; eigener Akzent und eigenes Logo je Modus | manuell |
 
 ### 4.6 Nicht-funktionale Anforderungen
@@ -314,7 +321,7 @@ Bericht „vom 1. bis 1. August" leer.
 | /NF11/ | verständliche Fehlerdialoge | `FanshopFehler` mit deutschem Text → `bausteine.fehler_zeigen()`; zusätzlich rote Zeile unter dem betroffenen Feld und ein Eintrag in der Statuszeile |
 | /NF12/ | linearer Kassenablauf | Die Seite Kasse ist eine **Strecke aus vier Schritten** mit „Zurück" und „Weiter": 1. Kunde, 2. Artikel, 3. Warenkorb und Rabatte, 4. Abschluss. Pro Schritt steht nur, was dort gebraucht wird. |
 | /NF20/ | objektorientiertes Design | drei Vererbungshierarchien (siehe Architektur, Kapitel 4), Kapselung über `_`-Methoden, Fabrikmethode `Artikel.aus_zeile()` |
-| /NF21/ | Trennung Frontend/Backend | vier Schichten, Aufrufrichtung nur nach unten; alle 94 Tests laufen ohne GUI |
+| /NF21/ | Trennung Frontend/Backend | vier Schichten, Aufrufrichtung nur nach unten; alle 134 Tests laufen ohne GUI |
 | /NF30/ | keine korrupten Daten | `PRAGMA foreign_keys = ON`, `Datenbank.transaktion()`, Kauf und Retoure jeweils als eine Transaktion |
 
 ---
@@ -343,10 +350,11 @@ Hand — diese Liste dauert etwa zehn Minuten.
 | 13 | Zeile wählen, Menge `3`, **Menge setzen** | Menge und Summen ändern sich |
 | 14 | **Weiter** | Schritt 4 „Abschluss" mit fertigem Beleg |
 | 14b | Oben in der Strecke auf „2 Artikel" klicken | Springt zurück; von dort direkt auf „4 Abschluss" klicken springt vorwärts |
-| 15 | **Kauf abschließen** | Dialog mit **drei verschiedenen** Stickerbildern und „Sammlung: 3 von 6 Motiven" |
+| 15 | **Kauf abschließen** | Dialog mit **zwei verschiedenen** Stickerbildern und „Sammlung: 2 von 6 Motiven" |
 | 16 | Zurück auf Schritt 1 | Die Kasse steht wieder am Anfang, Korb ist leer |
-| 17 | Seite Kunden → Anna Becker | Stickerstand um 3 höher, im Album drei Motive farbig, drei blass |
-| 18 | Nochmal kaufen, dann Kartei prüfen | Album zeigt „6 von 6 Motiven" |
+| 17 | Seite Kunden → den eben bedienten Kunden | Sammelstand „2 / 6", im Album zwei Motive farbig, vier blass; darunter „noch 2 Einkäufe bis zur vollen Sammlung" |
+| 18 | Zweimal weiter kaufen, dann Kartei prüfen | Album zeigt „6 von 6 Motiven"; der Kaufdialog nennt beim dritten Mal das **Starterset**, die Kartei meldet „Starterset erhalten: Stift, Block und Jutebeutel." |
+| 18b | Ein viertes Mal kaufen | Dialog meldet, dass alle Motive schon da sind — **keine** neuen Sticker, **kein** zweites Set |
 | 19 | Seite Sortiment → gekaufter Artikel | Lagerbestand um die gekaufte Menge kleiner, Foto in der Maske |
 | 19b | **Neu** drücken | Maske leer, Bildfläche zeigt „kein Foto" — **nicht** das Foto des vorher gewählten Artikels |
 | 19c | Unter „Produktfoto" ein Bild wählen | Foto erscheint sofort in der Karte und wird beim Anlegen gespeichert |
@@ -358,6 +366,7 @@ Hand — diese Liste dauert etwa zehn Minuten.
 | 22 | **Deaktivieren** | Sicherheitsabfrage; danach verschwindet er aus der Kasse |
 | 23 | Haken „Deaktivierte mit anzeigen" | Er taucht mit Status „deaktiviert" wieder auf |
 | 24 | Sortiment → Sonderaktion wählen, **Aktion starten** | Status springt auf „aktiv"; in der Kasse erscheint sie in Schritt 3 |
+| 24b | Unter der Aktionstabelle nachsehen | Der Hinweis auf das dauerhafte Starterset-Sonderangebot bleibt sichtbar — er wird von keiner Aktion abgelöst |
 | 25 | **Alle beenden** | Kein „aktiv" mehr; die Rabattzeile verschwindet aus der Kasse |
 | 26 | Retouren: Bestellnummer aus Schritt 15 eingeben | Positionen der Bestellung erscheinen |
 | 27 | Position wählen, Menge 1, **Retoure buchen** | Dialog mit Erstattungsbetrag; „Offen" sinkt um 1 |
@@ -402,11 +411,22 @@ Textilien, Accessoires, Schreibwaren, Print). Ein Schlüsselband kostet dort
 Kartenetui, Stiftemäppchen) gibt es im echten Shop nicht; ihre Preise sind
 geschätzt.
 
-**Warum bekommt ein Kunde drei verschiedene Sticker und nicht dreimal denselben?**
+**Warum bekommt ein Kunde zwei verschiedene Sticker und nicht zweimal denselben?**
 Weil im Assets-Ordner sechs Motive liegen und aus einem Zähler sonst keine
-Sammlung wird. Die Vergabe läuft reihum, nicht zufällig — nach zwei Einkäufen
-ist das Album genau einmal komplett. Begründung in
+Sammlung wird. Die Vergabe läuft reihum, nicht zufällig, und **jedes Motiv gibt
+es nur ein einziges Mal** — nach drei Einkäufen ist das Album genau einmal
+komplett, danach gibt es keine Sticker mehr. Begründung in
 [`../specs/09-sticker.md`](../specs/09-sticker.md).
+
+**Was ist das Starterset und warum steht es nicht in der Tabelle `sonderaktion`?**
+Wer drei Einkäufe getätigt und alle sechs Motive gesammelt hat, bekommt einmalig
+Stift, Block und Jutebeutel gratis — gutgeschrieben aufs Kundenkonto und der
+Bestellung beigelegt. Eine `Sonderaktion` ist dagegen ein Rabattsatz, von dem
+immer nur einer gleichzeitig laufen darf; das Starterset senkt keinen Preis und
+soll durchgehend gelten. Es steht deshalb als eigene Fachregel in
+`modelle/starterset.py` und erscheint im Sortiment als **dauerhaftes
+Sonderangebot** unter der Aktionstabelle. Einen Mindestbestellwert gibt es
+weder für die Sticker noch für das Set.
 
 **Warum sind Preise manchmal `2,12 €` und nicht `2,50 €`?**
 Der angezeigte Preis in der Kasse ist der **Endpreis** nach dem

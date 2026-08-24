@@ -19,7 +19,7 @@ niemand für jeden Test Artikel und Kunden von Hand eintippt.
 | 31 | Artikel mit echten Produktfotos | `assets/artikel/katalog.json` |
 | 5 | Kunden, davon 2 mit Newsletter-Gutschein | fest im Code |
 | 2 | Sonderaktionen (eine aktiv) | fest im Code |
-| 8 | Beispielbestellungen der letzten drei Wochen | fest im Code |
+| 9 | Beispielbestellungen der letzten drei Wochen | fest im Code |
 
 Gefordert waren mindestens 5 Artikel und 3 Kunden — beides ist deutlich
 übererfüllt, weil die echten Fotos ohnehin im Repository liegen.

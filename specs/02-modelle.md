@@ -17,7 +17,8 @@ kennen weder SQL noch die Oberfläche.
 | `modelle/kunde.py` | `Kunde` |
 | `modelle/bestellung.py` | `Bestellung`, `Bestellposition` |
 | `modelle/retoure.py` | `Retoure` |
-| `modelle/sticker.py` | `Stickermotiv`, `MOTIVE`, `motive_fuer_kauf()` |
+| `modelle/sticker.py` | `Stickermotiv`, `MOTIVE`, `motive_fuer_kauf()`, `offene_motive()` |
+| `modelle/starterset.py` | `INHALT`, `anspruch_besteht()` — das Sonderangebot zur vollen Sammlung |
 | `modelle/sonderaktion.py` | `Sonderaktion` |
 | `modelle/warenkorb.py` | `Warenkorb`, `WarenkorbPosition`, `Preisuebersicht` |
 

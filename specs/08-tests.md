@@ -14,19 +14,20 @@ das ist der Beleg für /NF21/.
 python -m unittest discover -s tests -t . -v
 ```
 
-Stand: **94 Tests, alle grün**, Laufzeit unter einer Sekunde.
+Stand: **134 Tests, alle grün**, Laufzeit unter einer Sekunde.
 
 ## Dateien
 
 | Datei | Prüft |
 |---|---|
 | `tests/basis.py` | Basisklasse: frische Datenbank je Testfall |
-| `tests/test_datenbank.py` | Schema, Fremdschlüssel, Transaktionen (/NF30/) |
+| `tests/test_datenbank.py` | Schema, Fremdschlüssel, Transaktionen (/NF30/), Migration älterer Datenbanken |
 | `tests/test_warenkorb.py` | Bestandsprüfung und die ganze Rabattrechnung (/F11/–/F13/) |
 | `tests/test_kasse.py` | Kaufabschluss, Sticker, Newsletter (/F14/, /F52/, /F53/) |
 | `tests/test_artikel_und_kunden.py` | Sortiment und Kartei (/F21/–/F23/, /F41/–/F44/) |
 | `tests/test_retouren_und_berichte.py` | Retouren und Auswertungen (/F51/, /F31/–/F313/, /F24/, /F25/) |
-| `tests/test_sticker.py` | Sammelalbum: Motivvergabe, Album, Zähler (/F53/) |
+| `tests/test_sticker.py` | Sammelalbum: Motivvergabe, Einmaligkeit, Album, Zähler (/F53/) |
+| `tests/test_starterset.py` | Starterset-Sonderangebot: Bedingungen, Einmaligkeit, Testdaten (/F53/) |
 | `tests/test_sonderaktionen.py` | Spezialangebote starten, ablösen, beenden |
 | `tests/test_rollenzugriff.py` | Zugangsarten: Kunde nur Kasse, Kassierer alle Fachseiten |
 
@@ -48,7 +49,7 @@ im Arbeitsspeicher an (`":memory:"`, `testdaten=False`). Folgen daraus:
 
 ## Die Tests, die wirklich etwas fangen
 
-Nicht jeder Test ist gleich viel wert. Diese vier haben beim Bauen Fehler
+Nicht jeder Test ist gleich viel wert. Diese haben beim Bauen Fehler
 gefunden oder verhindern die gefährlichsten:
 
 1. `test_alle_drei_rabatte_kumulieren_in_fester_reihenfolge` — rechnet den
@@ -66,6 +67,10 @@ gefunden oder verhindern die gefährlichsten:
    einem veralteten Kundenobjekt darf den Sammelstand nicht zurücksetzen.
 7. `test_postleitzahl_mit_fuehrender_null` — 01067 Dresden muss durchgehen,
    obwohl die Spalte laut Pflichtenheft INTEGER ist.
+8. `test_kein_motiv_wird_zweimal_vergeben` — auch nach sechs Einkäufen liegt
+   jedes Stickermotiv genau einmal im Album (/F53/).
+9. `test_es_gibt_das_set_nur_einmal` — das Starterset darf kein zweites Mal
+   herausgehen, egal wie oft der Kunde danach noch einkauft.
 
 ## Was die Tests nicht abdecken
 

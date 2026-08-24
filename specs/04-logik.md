@@ -53,7 +53,14 @@ Zwei Details, die im Alltag wichtig sind:
   Minuten.
 
 Verkauf ohne Kundenprofil ist erlaubt (Laufkundschaft) — dann gibt es keine
-Sticker und keinen Newsletter-Rabatt.
+Sticker, kein Starterset und keinen Newsletter-Rabatt.
+
+- `_praemien_bestimmen()` entscheidet, welche Sammelsticker dieser Kauf bringt
+  und ob das Starterset beiliegt. Es liest dafür **das Album**, nicht den
+  Zähler — so kann kein Motiv doppelt herausgehen. Details in
+  `specs/09-sticker.md`.
+- `KundenService.starterset_stand()` liefert der Kartei, wo ein Kunde beim
+  Sonderangebot steht (erhalten, oder wie viele Einkäufe noch fehlen).
 
 ## Fehlerbehandlung (/NF11/)
 

@@ -16,7 +16,7 @@ Abhängigkeiten, Schichten und deren Aufrufrichtung.
 | `requirements.txt` | Abhängigkeiten (customtkinter, Pillow, matplotlib) |
 | `.gitignore` | schließt `fanshop.db`, `__pycache__` u. a. aus |
 | `fanshop/__init__.py` | Paketbeschreibung, erklärt die Schichten |
-| `fanshop/konfiguration.py` | Pfade, Kategorien, Rabattsätze, Stickeranzahl |
+| `fanshop/konfiguration.py` | Pfade, Kategorien, Rabattsätze, Stickeranzahl, Starterset |
 | `fanshop/fehler.py` | eigene Fehlerklassen |
 | `fanshop/hilfsmittel.py` | Formatierung (Euro, Prozent), Datums- und Zahlenumwandlung |
 | `fanshop/zugriff.py` | erlaubte Seiten je Zugangsart (`kunde`, `kassierer`) |
