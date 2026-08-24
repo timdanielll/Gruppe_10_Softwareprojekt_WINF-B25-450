@@ -9,7 +9,7 @@ Was hier passiert - und nur hier:
 1. Das htw-saar-Design wird geladen (muss vor dem ersten Fenster geschehen).
 2. Die Anwendung wird zusammengebaut: Datenbank, Repositories, Services.
    Beim allerersten Start entstehen dabei Datenbankdatei und Testdaten.
-3. Das Hauptfenster wird geöffnet.
+3. Die Zugangsart wird gewaehlt; danach oeffnet sich die passende Oberflaeche.
 """
 
 from fanshop.gui import design

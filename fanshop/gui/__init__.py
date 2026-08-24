@@ -8,8 +8,8 @@ Aufbau:
     design.py       Farben, Schriften, Abstände (abgeleitet aus DESIGN.md)
     bausteine.py    wiederverwendbare Widgets (Tabelle, Feld, Dialog ...)
     basis_seite.py  gemeinsame Basisklasse aller Seiten
-    app.py          Hauptfenster mit Navigation
-    seite_*.py      die fünf Seiten
+    app.py          Rollenauswahl, Hauptfenster und Navigation
+    seite_*.py      die fünf Fachseiten (Kunde: nur Kasse)
 """
 
 from fanshop.gui.app import FanshopApp

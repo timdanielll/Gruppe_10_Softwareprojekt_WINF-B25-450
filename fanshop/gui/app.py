@@ -7,14 +7,17 @@ Aufbau (siehe DESIGN.md, Abschnitt Layout):
     | 232 px         |  Karten auf abgetoenter Seite              |
     +----------------+--------------------------------------------+
 
-Die Navigationsleiste ist die einzige Konstante der Oberflaeche. Sie traegt
-oben das Logo der htw saar - im Hellmodus die allgemeine schwarze Wortmarke mit
-dem Vierfarbbalken, im Dunkelmodus das goldene Logo der Fakultaet fuer
+Vor Navigation und Fachseiten erscheint eine Auswahl der Zugangsart. Kunden
+erhalten nur die Kasse, Kassierer alle fuenf Fachseiten. Die Navigationsleiste
+ist danach die einzige Konstante der Oberflaeche. Sie traegt oben das Logo der
+htw saar - im Hellmodus die allgemeine schwarze Wortmarke mit dem
+Vierfarbbalken, im Dunkelmodus das goldene Logo der Fakultaet fuer
 Wirtschaftswissenschaften.
 """
 
 import customtkinter as ctk
 
+from fanshop.zugriff import erlaubte_seiten
 from fanshop.gui import bausteine, design
 from fanshop.gui.design import ABSTAND, RADIUS, farbe, schrift
 from fanshop.gui.seite_artikel import ArtikelSeite
@@ -37,33 +40,96 @@ EINTRAEGE = [
     ("berichte", "Berichte"),
 ]
 
-
 class FanshopApp(ctk.CTk):
-    """Das Hauptfenster: Navigation links, wechselnde Seite rechts."""
+    """Das Hauptfenster: Rollenauswahl, danach Navigation und Seiten."""
 
     def __init__(self, anwendung) -> None:
         super().__init__()
         self.anwendung = anwendung
 
+        self.rolle = ""
+        self.erlaubte_seiten: tuple[str, ...] = ()
+        self.seiten: dict[str, object] = {}
+        self.navigationsknoepfe: dict[str, ctk.CTkButton] = {}
+        self.aktive_seite = ""
+
+        # Bevor die eigentliche Anwendung sichtbar wird, wählt die Person
+        # ihren Zugang. So werden gesperrte Seiten nicht nur ausgeblendet,
+        # sondern für Kunden gar nicht erst erzeugt.
+        self.title("WI Fanshop – Zugang wählen | htw saar")
+        self.geometry("620x390")
+        self.resizable(False, False)
+        self.configure(fg_color=farbe("papier"))
+        self.protocol("WM_DELETE_WINDOW", self._beenden)
+
+        self._rollenauswahl_bauen()
+
+    # -- Rollenauswahl ----------------------------------------------------
+
+    def _rollenauswahl_bauen(self) -> None:
+        """Zeigt die Zugangsauswahl, bevor Navigation und Seiten entstehen."""
+        auswahl = ctk.CTkFrame(self, fg_color="transparent")
+        auswahl.pack(fill="both", expand=True, padx=ABSTAND["xl"], pady=ABSTAND["xl"])
+        self.rollenauswahl = auswahl
+
+        karte = bausteine.Panel(auswahl)
+        karte.pack(fill="both", expand=True)
+
+        ctk.CTkLabel(
+            karte.inhalt,
+            text="WILLKOMMEN IM WI FANSHOP",
+            font=schrift("label"),
+            text_color=farbe("text_leise"),
+            anchor="w",
+        ).pack(fill="x", pady=(ABSTAND["sm"], 0))
+        ctk.CTkLabel(
+            karte.inhalt,
+            text="Wie möchten Sie fortfahren?",
+            font=schrift("titel_gross"),
+            text_color=farbe("text"),
+            anchor="w",
+        ).pack(fill="x", pady=(ABSTAND["xs"], ABSTAND["sm"]))
+        bausteine.Hinweis(
+            karte.inhalt,
+            "Kunden nutzen ausschließlich die Kasse. Kassierer haben Zugriff auf alle Bereiche.",
+            umbruch=500,
+        ).pack(fill="x")
+
+        knopfzeile = ctk.CTkFrame(karte.inhalt, fg_color="transparent")
+        knopfzeile.pack(fill="x", pady=(ABSTAND["lg"], ABSTAND["sm"]))
+        bausteine.knopf(
+            knopfzeile,
+            "Als Kunde fortfahren",
+            lambda: self._rolle_waehlen("kunde"),
+            breite=220,
+        ).pack(side="left")
+        bausteine.knopf(
+            knopfzeile,
+            "Als Kassierer fortfahren",
+            lambda: self._rolle_waehlen("kassierer"),
+            breite=220,
+        ).pack(side="right")
+
+    def _rolle_waehlen(self, rolle: str) -> None:
+        """Übernimmt die Rolle und baut anschließend nur ihre Bereiche auf."""
+        self.rolle = rolle
+        self.erlaubte_seiten = erlaubte_seiten(rolle)
+        self.rollenauswahl.destroy()
+
         self.title("WI Fanshop – Kassensystem und Warenwirtschaft | htw saar")
+        self.resizable(True, True)
         self.geometry(f"{design.FENSTER_MINDESTBREITE}x{design.FENSTER_MINDESTHOEHE}")
         self.minsize(design.FENSTER_MINDESTBREITE, design.FENSTER_MINDESTHOEHE)
-        self.configure(fg_color=farbe("papier"))
 
         # Spalte 1 (der Arbeitsbereich) darf wachsen, die Navigation nicht.
         self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        self.seiten: dict[str, object] = {}
-        self.navigationsknoepfe: dict[str, ctk.CTkButton] = {}
-        self.aktive_seite = ""
-
         self._navigation_bauen()
         self._seiten_bauen()
 
         self.seite_zeigen("kasse")
-        self.protocol("WM_DELETE_WINDOW", self._beenden)
 
     # -- Navigationsleiste -------------------------------------------------
 
@@ -107,6 +173,8 @@ class FanshopApp(ctk.CTk):
 
         # -- Menuepunkte ------------------------------------------------
         for schluessel, beschriftung in EINTRAEGE:
+            if schluessel not in self.erlaubte_seiten:
+                continue
             knopf = ctk.CTkButton(
                 self.navigation,
                 text=beschriftung,
@@ -166,7 +234,7 @@ class FanshopApp(ctk.CTk):
     # -- Seiten ------------------------------------------------------------
 
     def _seiten_bauen(self) -> None:
-        """Legt alle fünf Seiten einmal an.
+        """Legt die für die gewählte Rolle erlaubten Seiten einmal an.
 
         Sie bleiben im Speicher und werden nur ein- und ausgeblendet. Dadurch
         bleiben Suchtext, Filter und Auswahl erhalten, wenn man kurz auf eine
@@ -185,10 +253,14 @@ class FanshopApp(ctk.CTk):
             "berichte": BerichteSeite,
         }
         for schluessel, klasse in seitenklassen.items():
+            if schluessel not in self.erlaubte_seiten:
+                continue
             self.seiten[schluessel] = klasse(self.seitenbereich, self.anwendung)
 
     def seite_zeigen(self, schluessel: str) -> None:
         """Blendet eine Seite ein und alle anderen aus."""
+        if schluessel not in self.seiten:
+            return
         for name, seite in self.seiten.items():
             if name == schluessel:
                 seite.pack(fill="both", expand=True)
