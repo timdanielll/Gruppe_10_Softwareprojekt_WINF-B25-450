@@ -17,7 +17,8 @@ Rechenlogik oder SQL in die GUI wandert.
 | `gui/htw_saar_theme.json` | dieselben Werte für CustomTkinter |
 | `gui/bausteine.py` | `Panel`, `Feld`, `Tabelle` (mit Zeilenmarkierung), `Dialog`, `Schrittleiste`, `Statuszeile`, `Bildkarte`, `Kachel`, `StickerAlbum`, `HtwBalken`, Knöpfe |
 | `gui/basis_seite.py` | `BasisSeite` — Basisklasse aller Seiten |
-| `gui/app.py` | Hauptfenster mit Navigation |
+| `fanshop/zugriff.py` | Seitenzuordnung für Kunde und Kassierer — ohne GUI-Abhängigkeit |
+| `gui/app.py` | Rollenauswahl, Hauptfenster und rollenabhängige Navigation |
 | `gui/seite_kasse.py` | /F11/–/F14/, /F52/, /F53/ — als Wizard mit vier Schritten |
 | `gui/seite_artikel.py` | /F21/–/F23/ plus Schalten der Sonderaktionen |
 | `gui/seite_kunden.py` | /F41/–/F44/, /F52/ |
@@ -33,6 +34,23 @@ Rechenlogik oder SQL in die GUI wandert.
 +----------------+--------------------------------------------+
 ```
 
+## Zugangsart vor dem Hauptfenster
+
+Beim Programmstart erscheint zuerst eine kompakte Auswahl mit den zwei
+Schaltflächen **„Als Kunde fortfahren“** und **„Als Kassierer fortfahren“**.
+Erst nach dieser Wahl baut `FanshopApp` die Navigation und die Fachseiten auf:
+
+| Zugangsart | Navigation und angelegte Seiten |
+|---|---|
+| **Kunde** | ausschließlich **Kasse** |
+| **Kassierer** | **Kasse**, **Sortiment**, **Kunden**, **Retouren**, **Berichte** |
+
+Die Zuordnung liegt in `fanshop/zugriff.py`. `app._rolle_waehlen()` übernimmt
+sie und erzeugt nur die erlaubten Seiten; eine Kundensitzung enthält die
+Verwaltungsseiten deshalb nicht einmal im Speicher. Die Zugangsart wird bei
+jedem Start neu gewählt. Sie ist bewusst **keine Anmeldung** und enthält weder
+Passwort noch Benutzerverwaltung.
+
 ### Die Kasse ist eine Strecke, keine Maske
 
 Ursprünglich standen alle vier Bereiche der Kasse gleichzeitig auf einem
@@ -44,9 +62,9 @@ Das ist zugleich die wörtlichste Umsetzung von /NF12/: „Der Kassiervorgang mu
 einem logischen, linearen Ablauf folgen."
 
 Alle vier Schritte werden beim Aufbau **einmal** angelegt und danach nur ein-
-und ausgeblendet — genau wie die fünf Seiten im Hauptfenster. Der Warenkorb
-lebt im `KassenService`, nicht in einem Schritt; deshalb geht beim Blättern
-nichts verloren.
+und ausgeblendet — genau wie die für die gewählte Zugangsart erlaubten Seiten
+im Hauptfenster. Der Warenkorb lebt im `KassenService`, nicht in einem Schritt;
+deshalb geht beim Blättern nichts verloren.
 
 Die Schrittleiste ist in **beide** Richtungen anklickbar. Sie kennt die
 fachlichen Regeln aber nicht, sondern reicht den gewünschten Schritt an die
@@ -63,10 +81,12 @@ Warenkorb."), der nach vier Sekunden verblasst. Dialoge bleiben Fehlern,
 Sicherheitsabfragen und dem Kaufabschluss vorbehalten — ein Dialog, den man
 wegklicken muss, ist für eine Kasse die falsche Rückmeldung.
 
-Die fünf Seiten werden **einmal** angelegt und danach nur ein- und
-ausgeblendet. Dadurch bleiben Suchtext, Filter und Auswahl erhalten, wenn man
-kurz auf eine andere Seite wechselt. Beim Einblenden ruft `app.seite_zeigen()`
-die Methode `beim_anzeigen()` der Seite auf, die dort frische Daten lädt.
+Die erlaubten Seiten werden **einmal** angelegt und danach nur ein- und
+ausgeblendet. Im Kassiererzugang sind das alle fünf Fachseiten, im
+Kundenzugang nur die Kasse. Dadurch bleiben Suchtext, Filter und Auswahl
+erhalten, wenn man kurz auf eine andere Seite wechselt. Beim Einblenden ruft
+`app.seite_zeigen()` die Methode `beim_anzeigen()` der Seite auf, die dort
+frische Daten lädt.
 
 ## Die drei Methoden jeder Seite
 
@@ -147,6 +167,9 @@ Zeile unter dem Feld — ein Dialog verschwindet, der Fehler bleibt.
 - **Sonne und Mond** statt der Beschriftung „Hell/Dunkel" — das Symbolpaar
   (`☀` U+2600 und `☽` U+263D) braucht keine Überschrift und ist in jeder
   Sprache dasselbe.
+- **Zugang vor Inhalt.** Die Rollenwahl wird vor Navigation und Seiten
+  gezeigt. Beide Auswahlknöpfe sind sekundär: Sie wählen eine Ansicht, lösen
+  aber keine fachliche oder unwiderrufliche Aktion aus.
 
 ## Grenzen
 
@@ -154,6 +177,8 @@ Zeile unter dem Feld — ein Dialog verschwindet, der Fehler bleibt.
   importiert; fehlt es, erscheint ein Hinweis und die Anwendung läuft weiter.
 - Feste Mindestgröße 1280 × 800. Ein Kassenrechner hat einen bekannten
   Bildschirm; ein responsives Umbruchverhalten wäre erfundene Komplexität.
+- Die Rollenwahl ist kein Sicherheitssystem. Wer Verwaltungszugriff
+  verlässlich schützen muss, braucht zusätzlich eine Anmeldung.
 - Tkinter kennt keine Laufweite (`letterSpacing`). Die Werte aus `DESIGN.md`
   gelten für Belege und Berichte, in der Oberfläche werden Versallabels durch
   zusätzlichen Innenabstand geöffnet.

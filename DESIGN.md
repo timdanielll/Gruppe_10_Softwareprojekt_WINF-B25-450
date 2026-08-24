@@ -334,7 +334,7 @@ components:
 
 ## Overview
 
-Das WI-Fanshop-Kassenterminal ist kein Webshop. Es ist ein Arbeitsgerät, das während der Öffnungszeiten dauerhaft offen steht, von Kassenpersonal mit Maus und Tastatur bedient wird und dem Kunden nie zugewandt ist. Alles in diesem System folgt daraus: Der Bildschirm muss über Stunden ermüdungsfrei lesbar sein, Zahlen müssen sich beim Überfliegen einer Spalte vergleichen lassen, und die eine Schaltfläche, die Geld und Lagerbestand verändert, muss auch dann sofort auffindbar sein, wenn jemand danebensteht und wartet.
+Das WI-Fanshop-Kassenterminal ist kein Webshop. Es ist vor allem ein Arbeitsgerät, das während der Öffnungszeiten dauerhaft offen steht und von Kassenpersonal mit Maus und Tastatur bedient wird. Vor dem Arbeitsbereich wählt eine kompakte Startansicht jedoch die Zugangsart: Kunden gelangen nur zur Kasse, Kassierer in alle Fachbereiche. Alles in diesem System folgt daraus: Der Bildschirm muss über Stunden ermüdungsfrei lesbar sein, Zahlen müssen sich beim Überfliegen einer Spalte vergleichen lassen, und die eine Schaltfläche, die Geld und Lagerbestand verändert, muss auch dann sofort auffindbar sein, wenn jemand danebensteht und wartet.
 
 Die Richtung heißt **institutionelles Schweizer Raster in Kassenpult-Dichte**. Sie ist nicht frei gewählt, sondern aus der Hausmarke der htw saar abgeleitet: schwarze Wortmarke, eine einzige Fakultätsfarbe als Signal, viel Weißraum, Haarlinien statt Rahmen, Akkurat als Grotesk. Die Hochschule macht damit bereits Schweizer Typografie — dieses System führt sie nur in eine höhere Informationsdichte weiter, wie sie ein Kassenterminal braucht.
 
@@ -389,9 +389,9 @@ Die Skala ist mit Verhältnis ≈1,2 aufgebaut (11 → 12 → 14 → 17 → 20 �
 
 ## Layout
 
-Die Anwendung hat eine feste Zweiteilung: eine **232 px breite Navigationsleiste links** über die volle Höhe, rechts daneben der Arbeitsbereich. Die Leiste ist die einzige Konstante der Oberfläche. Sie trägt oben das Logo der htw saar und ist im Hellmodus hell — durch eine Haarlinie von der Seite getrennt —, im Dunkelmodus die dunkelste Fläche des Fensters. Der aktive Eintrag ist die einzige Stelle, an der dort Gold vorkommt.
+Beim Start zeigt die Anwendung zunächst eine **kompakte Auswahlkarte** ohne Navigation. Sie fragt nach der Zugangsart und bietet zwei gleichwertige sekundäre Schaltflächen. Erst nach dieser Wahl erscheint die feste Zweiteilung: eine **232 px breite Navigationsleiste links** über die volle Höhe, rechts daneben der Arbeitsbereich. Die Leiste ist die einzige Konstante der Fachansicht. Sie trägt oben das Logo der htw saar und ist im Hellmodus hell — durch eine Haarlinie von der Seite getrennt —, im Dunkelmodus die dunkelste Fläche des Fensters. Der aktive Eintrag ist die einzige Stelle, an der dort Gold vorkommt.
 
-Der Arbeitsbereich ist **asymmetrisch geteilt und zwar immer in dieselbe Richtung**: Links die Auswahl (Suchen, Filtern, Finden), rechts das Ergebnis der Auswahl (Warenkorb, Kundendetails, Bestellpositionen). Das Verhältnis ist ungefähr 3:2 zugunsten links. Diese Aufteilung gilt auf allen fünf Seiten, auch dort, wo sie nicht zwingend wäre — der Bediener soll nach der zweiten Schicht nicht mehr suchen müssen, wo etwas steht.
+Der Arbeitsbereich ist **asymmetrisch geteilt und zwar immer in dieselbe Richtung**: Links die Auswahl (Suchen, Filtern, Finden), rechts das Ergebnis der Auswahl (Warenkorb, Kundendetails, Bestellpositionen). Das Verhältnis ist ungefähr 3:2 zugunsten links. Diese Aufteilung gilt auf allen fünf Fachseiten, auch dort, wo sie nicht zwingend wäre — der Bediener soll nach der zweiten Schicht nicht mehr suchen müssen, wo etwas steht. Im Kundenzugang wird davon ausschließlich die Kassenseite angezeigt.
 
 Raster: 4-px-Basis, alle Abstände sind Vielfache. Der Seitenrand ist 40 px, Panels sind innen 24 px gepolstert, zusammengehörige Steuerelemente stehen 8 px auseinander, unabhängige Gruppen 24 px. Tabellenzeilen sind 26 px hoch — dicht genug, dass 18 Artikel ohne Scrollen sichtbar sind, hoch genug zum sicheren Treffen mit der Maus.
 
@@ -428,11 +428,11 @@ Bilder: Artikelfotos sind rechteckig, ohne Radius, ohne Rahmen, auf `neutral` ge
 
 ## Components
 
-**Navigationsleiste (`rail`).** Fünf Einträge, Reihenfolge fest und identisch mit dem Arbeitsablauf: Kasse, Sortiment, Kunden, Retouren, Berichte. Kasse steht oben, weil sie in 90 % der Fälle gemeint ist. Der aktive Eintrag bekommt Goldfläche mit schwarzer Schrift; inaktive Einträge sind Papierweiß auf Schwarz. Unten in der Leiste steht der Schalter für den Dunkelmodus, weil er zur Anwendung gehört und nicht zur Aufgabe.
+**Navigationsleiste (`rail`).** Im Kassiererzugang hat sie fünf Einträge, Reihenfolge fest und identisch mit dem Arbeitsablauf: Kasse, Sortiment, Kunden, Retouren, Berichte. Im Kundenzugang besteht sie ausschließlich aus Kasse. Kasse steht oben, weil sie in 90 % der Fälle gemeint ist. Der aktive Eintrag bekommt Goldfläche mit schwarzer Schrift; inaktive Einträge sind Papierweiß auf Schwarz. Unten in der Leiste steht der Schalter für den Dunkelmodus, weil er zur Anwendung gehört und nicht zur Aufgabe.
 
 **Tabellen.** Kopfzeile in `table-header`: Versallabel, Kartonfläche, unten eine Haarlinie. Zahlenspalten sind **rechtsbündig** und benutzen `table-cell-numeric`, Textspalten linksbündig, Identifikationsnummern `table-cell-id`. Keine Zebrastreifen — bei 30 px Zeilenhöhe und ausgerichteten Zahlen sind sie überflüssig und machen die Fläche unruhig. Die ausgewählte Zeile bekommt `tertiary-soft`, also stark aufgehelltes Gold, und behält ihre normale Schriftfarbe. Volltongold auf der Auswahl war die erste Fassung; es zog bei jedem Klick den Blick vom Inhalt weg.
 
-**Buttons.** Pro Bildschirm gibt es **genau einen** `button-primary`. Er trägt die Aktion, die etwas Unwiderrufliches tut: „Kauf abschließen", „Retoure buchen", „Artikel anlegen". Alles andere ist `button-secondary`. `button-danger` ist Stempelrot und ausschließlich für Löschen und Deaktivieren reserviert. Ein Button ist immer beschriftet, niemals nur ein Symbol — die Kasse wird auch von Aushilfen bedient, die das Programm nicht kennen.
+**Buttons.** Pro Fachseite gibt es **genau einen** `button-primary`. Er trägt die Aktion, die etwas Unwiderrufliches tut: „Kauf abschließen", „Retoure buchen", „Artikel anlegen". Alles andere ist `button-secondary`. Die beiden Knöpfe der Zugangsart sind ebenfalls `button-secondary`, weil sie nur die Ansicht wählen. `button-danger` ist Stempelrot und ausschließlich für Löschen und Deaktivieren reserviert. Ein Button ist immer beschriftet, niemals nur ein Symbol — die Kasse wird auch von Aushilfen bedient, die das Programm nicht kennen.
 
 Beschriftungen stehen in **normaler Schreibweise**, nicht in Versalien. Versalien bleiben den 11-px-Labels über den Eingabefeldern vorbehalten, wo sie Struktur markieren; auf einem Button lesen sie sich als Anschrei.
 

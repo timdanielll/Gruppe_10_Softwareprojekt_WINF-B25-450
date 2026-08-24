@@ -96,6 +96,17 @@ Anthrazit (`#1A1815`) statt blaustichigem Marineblau, gebrochenes Warmweiß
 (`#EDE9E1`) statt reinem Weiß, Gold unverändert. Umgeschaltet wird mit
 `design.modus_umschalten()` über den Schalter unten in der Navigationsleiste.
 
+## Zugangsart
+
+Die Anwendung beginnt mit einer kompakten Auswahlkarte für **Kunde** und
+**Kassierer**. Beide Schaltflächen sind sekundär: Sie wählen nur den Umfang der
+nachfolgenden Ansicht und verändern keine Daten. Im Kundenzugang wird allein
+die Kasse aufgebaut, im Kassiererzugang alle fünf Fachseiten. Erst danach gilt
+das reguläre Layout mit linker Navigationsleiste.
+
+Die Zugangsart ist keine Authentifizierung. Sie ersetzt weder Passwort noch
+Benutzerverwaltung und wird bei jedem Programmstart neu ausgewählt.
+
 ## Prüfung
 
 `DESIGN.md` folgt dem DESIGN.md-Format von Google und wurde mit dem offiziellen

@@ -14,7 +14,7 @@ das ist der Beleg für /NF21/.
 python -m unittest discover -s tests -t . -v
 ```
 
-Stand: **91 Tests, alle grün**, Laufzeit unter einer Sekunde.
+Stand: **94 Tests, alle grün**, Laufzeit unter einer Sekunde.
 
 ## Dateien
 
@@ -28,6 +28,7 @@ Stand: **91 Tests, alle grün**, Laufzeit unter einer Sekunde.
 | `tests/test_retouren_und_berichte.py` | Retouren und Auswertungen (/F51/, /F31/–/F313/, /F24/, /F25/) |
 | `tests/test_sticker.py` | Sammelalbum: Motivvergabe, Album, Zähler (/F53/) |
 | `tests/test_sonderaktionen.py` | Spezialangebote starten, ablösen, beenden |
+| `tests/test_rollenzugriff.py` | Zugangsarten: Kunde nur Kasse, Kassierer alle Fachseiten |
 
 ## Warum `unittest` und nicht `pytest`
 
@@ -71,7 +72,9 @@ gefunden oder verhindern die gefährlichsten:
 Die Oberfläche selbst wird nicht automatisch getestet — dafür bräuchte es
 Werkzeuge, die den Rahmen des Moduls sprengen. Statt dessen gibt es die
 Testfall-Tabelle in `docs/Technische-Dokumentation.md`, die man einmal von Hand
-durchklickt.
+durchklickt. Die Seitenzuordnung der Rollenauswahl ist davon ausgenommen: Sie
+liegt bewusst ohne GUI-Abhängigkeit in `fanshop/zugriff.py` und wird durch
+`test_rollenzugriff.py` automatisch geprüft.
 
 ## Nächster Schritt
 

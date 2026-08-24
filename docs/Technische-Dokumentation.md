@@ -37,10 +37,11 @@ korrekt angezeigt werden.
 
 | Datei | Zeilen | Inhalt |
 |---|---|---|
-| `main.py` | 35 | Startpunkt: Design laden → `Anwendung` bauen → Fenster öffnen |
+| `main.py` | 35 | Startpunkt: Design laden → `Anwendung` bauen → Fenster mit Rollenauswahl öffnen |
 | `fanshop/konfiguration.py` | 52 | Pfade, die sieben Kategorien, Größen, Rabattsätze, Stickeranzahl |
 | `fanshop/fehler.py` | 29 | `FanshopFehler` und die drei Unterklassen |
 | `fanshop/hilfsmittel.py` | 109 | `euro()`, `prozent()`, Datumsumwandlung, `zahl_aus_text()` |
+| `fanshop/zugriff.py` | 14 | erlaubte Seitenschlüssel für `kunde` und `kassierer`; ohne GUI testbar |
 
 `hilfsmittel.euro(1234.5)` liefert `"1.234,50 €"` — deutsches Format mit Komma
 und Tausenderpunkt. `zahl_aus_text()` akzeptiert `"19,90"` **und** `"19.90"`,
@@ -113,7 +114,7 @@ Jede Klasse hat dasselbe Umwandlungspaar:
 | `htw_saar_theme.json` | — | dieselben Werte im CustomTkinter-Format |
 | `bausteine.py` | 1088 | `Panel`, `Feld`, `Tabelle`, `Dialog`, `Schrittleiste`, `Statuszeile`, `Bildkarte`, `Kachel`, `StickerAlbum`, `HtwBalken`, Knöpfe |
 | `basis_seite.py` | 96 | `BasisSeite` — Basisklasse, Statuszeile, `melden()` |
-| `app.py` | 233 | Hauptfenster, Navigation, Logo je Modus, Hell/Dunkel |
+| `app.py` | 258 | Rollenauswahl, rollenabhängiger Seitenaufbau, Navigation, Logo je Modus, Hell/Dunkel |
 | `seite_kasse.py` | 764 | Kasse als Wizard mit vier Schritten |
 | `seite_artikel.py` | 457 | Sortiment, Produktfoto-Auswahl, Sonderaktionen |
 | `seite_kunden.py` | 322 | Kunden |
@@ -124,7 +125,24 @@ Jede Klasse hat dasselbe Umwandlungspaar:
 
 ## 3. Die wichtigsten Abläufe im Detail
 
-### 3.1 Ein Artikel kommt in den Warenkorb (/F11/)
+### 3.1 Zugangsart auswählen
+
+Beim Start baut `FanshopApp` zunächst nur die Auswahl „Als Kunde fortfahren“
+oder „Als Kassierer fortfahren“. Erst beim Klick ruft
+`app._rolle_waehlen()` die Funktion `zugriff.erlaubte_seiten()` auf und erzeugt
+die erlaubten Navigationseinträge und Fachseiten:
+
+```
+Kunde       → Kasse
+Kassierer   → Kasse, Sortiment, Kunden, Retouren, Berichte
+```
+
+Die Verwaltungsseiten werden im Kundenzugang nicht versteckt, sondern nicht
+instanziiert. `test_rollenzugriff.py` prüft die Zuordnung ohne eine
+GUI-Bibliothek. Die Wahl ist kein Login und schützt nicht mit Passwort; sie
+legt nur den sichtbaren Funktionsumfang für diesen Programmstart fest.
+
+### 3.2 Ein Artikel kommt in den Warenkorb (/F11/)
 
 ```
 Bediener klickt „In den Warenkorb"
@@ -148,7 +166,7 @@ Warum wird der Artikel neu geladen? Weil der Lagerbestand sich seit dem Aufbau
 der Liste geändert haben kann — etwa durch eine Retoure am anderen Ende des
 Programms.
 
-### 3.2 Der Bestellwert wird berechnet (/F13/)
+### 3.3 Der Bestellwert wird berechnet (/F13/)
 
 `Warenkorb.berechne(sonderaktion, newsletter_rabatt_anwenden)` gibt eine
 `Preisuebersicht` zurück:
@@ -178,7 +196,7 @@ Kunde hat Newsletter-Gutschein:
  =  64,80     Gesamtbetrag
 ```
 
-### 3.3 Der Kauf wird abgeschlossen (/F14/)
+### 3.4 Der Kauf wird abgeschlossen (/F14/)
 
 ```
 kassen_service.kauf_abschliessen()
@@ -201,7 +219,7 @@ Danach zeigt die GUI den Sticker-Dialog: die **drei Motive** als Bilder mit
 Titel und darunter „Sammlung: 4 von 6 Motiven". Warum drei verschiedene und
 nicht dreimal dasselbe — siehe [`../specs/09-sticker.md`](../specs/09-sticker.md).
 
-### 3.4 Eine Retoure wird gebucht (/F51/)
+### 3.5 Eine Retoure wird gebucht (/F51/)
 
 ```
 retouren_service.retoure_buchen(bestellnummer, artikel_id, menge)
@@ -217,7 +235,7 @@ retouren_service.retoure_buchen(bestellnummer, artikel_id, menge)
 Erstattet wird `menge × historischer_preis` — der Preis vom Kauftag. Ein
 zwischenzeitlich geänderter Verkaufspreis spielt keine Rolle.
 
-### 3.5 Ein Bericht entsteht (/F31/)
+### 3.6 Ein Bericht entsteht (/F31/)
 
 ```
 Schnellwahl-Knopf         →  bericht_service.zeitraum_schnellwahl("woche")
@@ -292,11 +310,11 @@ Bericht „vom 1. bis 1. August" leer.
 
 | ID | Anforderung | Wie erfüllt |
 |---|---|---|
-| /NF10/ | vollständig grafische Bedienung | Alle Funktionen liegen auf den fünf Seiten. Die Konsole gibt nur beim allerersten Start eine Zeile aus. |
+| /NF10/ | vollständig grafische Bedienung | Nach der grafischen Rollenauswahl liegen alle für die gewählte Zugangsart erlaubten Funktionen auf Fachseiten. Die Konsole gibt nur beim allerersten Start eine Zeile aus. |
 | /NF11/ | verständliche Fehlerdialoge | `FanshopFehler` mit deutschem Text → `bausteine.fehler_zeigen()`; zusätzlich rote Zeile unter dem betroffenen Feld und ein Eintrag in der Statuszeile |
 | /NF12/ | linearer Kassenablauf | Die Seite Kasse ist eine **Strecke aus vier Schritten** mit „Zurück" und „Weiter": 1. Kunde, 2. Artikel, 3. Warenkorb und Rabatte, 4. Abschluss. Pro Schritt steht nur, was dort gebraucht wird. |
 | /NF20/ | objektorientiertes Design | drei Vererbungshierarchien (siehe Architektur, Kapitel 4), Kapselung über `_`-Methoden, Fabrikmethode `Artikel.aus_zeile()` |
-| /NF21/ | Trennung Frontend/Backend | vier Schichten, Aufrufrichtung nur nach unten; alle 91 Tests laufen ohne GUI |
+| /NF21/ | Trennung Frontend/Backend | vier Schichten, Aufrufrichtung nur nach unten; alle 94 Tests laufen ohne GUI |
 | /NF30/ | keine korrupten Daten | `PRAGMA foreign_keys = ON`, `Datenbank.transaktion()`, Kauf und Retoure jeweils als eine Transaktion |
 
 ---
@@ -308,7 +326,9 @@ Hand — diese Liste dauert etwa zehn Minuten.
 
 | # | Was tun | Erwartet |
 |---|---|---|
-| 1 | `python main.py` beim ersten Mal | Fenster öffnet sich auf der Kasse, Schritt 1 „Kunde", 5 Kunden in der Liste |
+| 1 | `python main.py` beim ersten Mal | Fenster zeigt zuerst die Auswahl „Als Kunde fortfahren“ und „Als Kassierer fortfahren“ |
+| 1a | **Als Kunde fortfahren** | Es öffnet sich die Kasse auf Schritt 1 „Kunde“; die Navigation enthält nur „Kasse“ |
+| 1b | Programm schließen, erneut starten, **Als Kassierer fortfahren** | Kasse öffnet sich auf Schritt 1 mit 5 Kunden in der Liste; die Navigation enthält alle fünf Fachseiten |
 | 2 | Kunde „Anna Becker" anklicken | Rechts erscheinen Anschrift, Stickerstand und der Gutschein-Hinweis; unten meldet die Statuszeile „Anna Becker ausgewählt." |
 | 3 | **Weiter** | Schritt 2 „Artikel", Schritt 1 ist golden umrandet |
 | 4 | Suchfeld: `htw` tippen | Liste wird beim Tippen kürzer, ohne Ruckeln |
@@ -356,6 +376,11 @@ Hand — diese Liste dauert etwa zehn Minuten.
 **Die Anwendung startet nicht: `ModuleNotFoundError: No module named 'customtkinter'`**
 `pip install -r requirements.txt` ausführen. Bei mehreren Python-Versionen:
 `python -m pip install -r requirements.txt`.
+
+**Schützt „Kassierer“ die Verwaltungsseiten mit einem Passwort?**
+Nein. Die Auswahl steuert nur, welche Seiten für diesen Start aufgebaut werden.
+Für einen geschützten Verwaltungszugang wären Benutzerkonten und eine
+Anmeldung nötig; das Projekt enthält sie bewusst nicht.
 
 **Ich möchte die Testdaten zurücksetzen.**
 `fanshop.db` im Projektverzeichnis löschen und `python main.py` starten. Die

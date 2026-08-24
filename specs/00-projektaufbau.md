@@ -19,6 +19,7 @@ Abhängigkeiten, Schichten und deren Aufrufrichtung.
 | `fanshop/konfiguration.py` | Pfade, Kategorien, Rabattsätze, Stickeranzahl |
 | `fanshop/fehler.py` | eigene Fehlerklassen |
 | `fanshop/hilfsmittel.py` | Formatierung (Euro, Prozent), Datums- und Zahlenumwandlung |
+| `fanshop/zugriff.py` | erlaubte Seiten je Zugangsart (`kunde`, `kassierer`) |
 
 ## Schichten (/NF21/)
 
@@ -51,6 +52,10 @@ lokale Importe in `hilfsmittel.py`, um einen Ringimport zu vermeiden).
 3. **Anforderungs-IDs im Code.** Jede Methode, die eine Anforderung erfüllt,
    nennt ihre ID im Docstring (`/F13/`, `/NF30/`). So lässt sich das
    Pflichtenheft gegen den Code prüfen, ohne zu suchen.
+4. **Zugang unabhängig von Widgets.** Die Zuordnung von Zugangsart zu Seiten
+   liegt in `fanshop/zugriff.py`, nicht in der GUI. Dadurch lässt sie sich ohne
+   geöffnetes Fenster testen und die Oberfläche baut für Kunden gesperrte
+   Seiten gar nicht erst auf.
 
 ## Nächster Schritt
 

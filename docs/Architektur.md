@@ -16,7 +16,7 @@ und schreibt in eine einzige Datei.
 
 ```
         ┌─────────────────────────────────┐
-        │  Kassenpersonal / Shop-Leitung  │
+        │ Kunde / Kassenpersonal / Leitung │
         └────────────────┬────────────────┘
                          │ Maus und Tastatur
         ┌────────────────▼────────────────┐
@@ -75,7 +75,7 @@ Es braucht kein Werkzeug dafür — ein Blick in die Importzeilen genügt:
 | `fanshop/gui/*` | `sqlite3`, `repositories` |
 | `fanshop/modelle/*` | `sqlite3.connect` |
 
-Der praktische Beweis sind die Tests: Alle 91 laufen ohne ein einziges Fenster.
+Der praktische Beweis sind die Tests: Alle 94 laufen ohne ein einziges Fenster.
 
 ---
 
@@ -97,6 +97,26 @@ Jede Seite der Oberfläche greift über `self.anwendung.artikel_service`,
 - Für einen Test genügt `Anwendung(datenbank_pfad=":memory:", testdaten=False)`
   — dieselbe Logik, andere Datenbank.
 - Man sieht auf 73 Zeilen, woraus das Programm besteht.
+
+### 3.1 Rollenauswahl und bedarfsgerechter Seitenaufbau
+
+`FanshopApp` zeigt vor Navigation und Fachseiten eine Auswahl der Zugangsart.
+Nach der Wahl fragt sie `fanshop/zugriff.py`, welche Seitenschlüssel erlaubt
+sind, und baut ausschließlich diese Widgets:
+
+| Zugangsart | Angelegte Seiten |
+|---|---|
+| `kunde` | `kasse` |
+| `kassierer` | `kasse`, `artikel`, `kunden`, `retouren`, `berichte` |
+
+Die Regel steht absichtlich außerhalb der GUI. So prüft
+`tests/test_rollenzugriff.py` sie ohne CustomTkinter und ohne geöffnetes
+Fenster. Das trennt die Entscheidung „welche Bereiche gehören zu dieser
+Ansicht?“ vom Aufbau der Buttons und Seiten.
+
+Die Wahl wird bei jedem Programmstart neu getroffen und ist keine Anmeldung:
+Sie enthält weder Passwörter noch Benutzerkonten. Sie beschränkt den
+Funktionsumfang der Oberfläche, ersetzt aber kein Berechtigungssystem.
 
 ---
 
@@ -376,6 +396,7 @@ gesetzt werden müssen.
 | Neue Rabattart | `modelle/sonderaktion.py` und `Warenkorb.berechne()` |
 | Neue Auswertung | `repositories/bericht_repository.py`, `logik/bericht_service.py`, `gui/seite_berichte.py` |
 | Neue Seite | Klasse von `BasisSeite` ableiten und in `gui/app.py` eintragen |
+| Neue Zugangsart | `zugriff.py` ergänzen und den Seitenaufbau in `gui/app.py` prüfen |
 | Neuer Schritt in der Kasse | `SCHRITT_*`-Konstante, `_schritt_X_bauen()` und ein Eintrag in `self.schritte` in `gui/seite_kasse.py` |
 | Neues Stickermotiv | Bild nach `assets/sticker/`, Eintrag in `MOTIVE` in `modelle/sticker.py` |
 | Farbe ändern | zuerst `DESIGN.md`, dann `design.py` und `htw_saar_theme.json` — beide Modi im selben Farbpaar |
