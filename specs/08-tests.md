@@ -14,7 +14,7 @@ das ist der Beleg für /NF21/.
 python -m unittest discover -s tests -t . -v
 ```
 
-Stand: **134 Tests, alle grün**, Laufzeit unter einer Sekunde.
+Stand: **177 Tests, alle grün**, Laufzeit unter einer Sekunde.
 
 ## Dateien
 
@@ -28,6 +28,7 @@ Stand: **134 Tests, alle grün**, Laufzeit unter einer Sekunde.
 | `tests/test_retouren_und_berichte.py` | Retouren und Auswertungen (/F51/, /F31/–/F313/, /F24/, /F25/) |
 | `tests/test_sticker.py` | Sammelalbum: Motivvergabe, Einmaligkeit, Album, Zähler (/F53/) |
 | `tests/test_starterset.py` | Starterset-Sonderangebot: Bedingungen, Einmaligkeit, Testdaten (/F53/) |
+| `tests/test_groessen.py` | Größenauswahl beim Bestellen, Sortiment ohne Dubletten (/F11/, /NF20/) |
 | `tests/test_sonderaktionen.py` | Spezialangebote starten, ablösen, beenden |
 | `tests/test_rollenzugriff.py` | Zugangsarten: Kunde nur Kasse, Kassierer alle Fachseiten |
 
@@ -71,6 +72,12 @@ gefunden oder verhindern die gefährlichsten:
    jedes Stickermotiv genau einmal im Album (/F53/).
 9. `test_es_gibt_das_set_nur_einmal` — das Starterset darf kein zweites Mal
    herausgehen, egal wie oft der Kunde danach noch einkauft.
+10. `test_bestand_gilt_ueber_alle_groessen` — zehn Hoodies auf Lager heißt zehn
+    insgesamt, nicht zehn je Größe.
+11. `test_retoure_belastet_nur_ihre_position` — wer den Hoodie in L zurückgibt,
+    darf den in M nicht mit aufbrauchen.
+12. `test_jeder_artikel_kommt_genau_einmal_vor` — hält das Sortiment frei von
+    Dubletten wie der früher doppelten Fleecejacke.
 
 ## Was die Tests nicht abdecken
 

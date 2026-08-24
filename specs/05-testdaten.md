@@ -46,9 +46,11 @@ der Vergangenheit setzen, damit die Zeitraumfilter etwas zu filtern haben.
 ## Artikelkatalog
 
 `assets/artikel/katalog.json` ordnet jedem der 31 Fotos Titel, Kategorie,
-Größe, Beschreibung und Preis zu. Die Datei ist reine Datenhaltung — wer einen
-Artikel umbenennen oder umkategorisieren will, ändert nur diese Datei und
-löscht `fanshop.db`.
+Beschreibung und Preis zu — **ohne Größe**, denn die wählt der Kunde beim
+Bestellen. Jeder Artikel und jedes Foto kommt genau einmal vor; die sechs
+Textilien gibt es je einmal für Damen und einmal für Herren. Die Datei ist
+reine Datenhaltung — wer einen Artikel umbenennen oder umkategorisieren will,
+ändert nur diese Datei und löscht `fanshop.db`.
 
 ## Nächster Schritt
 

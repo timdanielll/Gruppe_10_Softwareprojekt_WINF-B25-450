@@ -132,12 +132,20 @@ Merkmale (Herren / Damen, Größe etc.)".
 
 ```
 Artikel                     titel, kategorie, preis, rabattsatz, lagerbestand …
-  │                         merkmale() → ""
-  │                         groesse_wert() → None
-  └── Kleidungsartikel      zusätzlich: groesse
-                            merkmale() → "Größe: L"
-                            groesse_wert() → "L"
+  │                         groessen        → ()
+  │                         merkmale()      → ""
+  │                         groesse_pruefen() → ""
+  └── Kleidungsartikel      groessen        → ("S", "M", "L", "XL", …)
+                            merkmale()      → "Größen: S, M, L, XL"
+                            groesse_pruefen("xl") → "XL", sonst Fehler
 ```
+
+Die Größe ist dabei **kein Feld des Artikels**, sondern eine Spanne, die an der
+Kategorie hängt (Damen S–XL, Herren S–5XL, siehe
+`konfiguration.GROESSEN_JE_KATEGORIE`). Jedes Kleidungsstück steht genau einmal
+im Sortiment; welche Größe der Kunde will, entscheidet sich beim Bestellen und
+landet auf der Bestellposition. Damen und Herren führen deshalb dasselbe
+Sortiment und unterscheiden sich nur in der Spanne.
 
 Welche Klasse entsteht, entscheidet die **Fabrikmethode** `Artikel.aus_zeile()`
 anhand der Kategorie. Die Oberfläche ruft immer nur `artikel.merkmale()` auf und
@@ -250,7 +258,7 @@ Zeichnen nach.
    name                  │        kategorie, titel, beschreibung
    strasse, plz, ort     │        preis, rabattsatz, lagerbestand
    newsletter_aktiv      │        erstellungsdatum, aktiv
-   newsletter_rabatt_…   │        groesse, bildpfad
+   newsletter_rabatt_…   │        bildpfad
    sticker_kontostand    │              ▲          ▲
    starterset_erhalten   │              │          │
                          │              │          │
@@ -308,7 +316,7 @@ Ergänzungen — es wurde nichts weggelassen.
 
 | Abweichung | Warum |
 |---|---|
-| Spalte `artikel.groesse` | Das Lastenheft verlangt kategorieabhängige Merkmale („Herren / Damen, Größe etc."). Ohne diese Spalte gäbe es die Klasse `Kleidungsartikel` nicht und damit keine sinnvolle Vererbung im Datenmodell (/NF20/). |
+| Spalte `bestellposition.groesse` | Das Lastenheft verlangt kategorieabhängige Merkmale („Herren / Damen, Größe etc."). Die Größe steht dabei **nicht** am Artikel: Jedes Kleidungsstück gibt es genau einmal und in allen Größen seiner Kategorie, gewählt wird beim Bestellen. Ohne diese Spalte wüsste die Bestellung nicht, welche Größe über den Tresen ging. |
 | Spalte `artikel.bildpfad` | Verweist auf das Produktfoto in `assets/artikel/`. Das Pflichtenheft nennt die Produktbilder des htw-saar-Webshops als Quelle, sieht aber kein Feld dafür vor. |
 | Tabelle `sonderaktion` | Das Lastenheft fordert „fest definierte Spezialangebote, die aktiviert werden können". Ohne Tabelle würde der Aktivierungsstatus einen Programmneustart nicht überleben. |
 | Tabelle `kunde_sticker` | Das Pflichtenheft zählt Sticker nur (`sticker_kontostand`). Im Assets-Ordner liegen aber sechs verschiedene Motive. Ohne diese Tabelle weiß das System nicht, *welche* ein Kunde besitzt — und /F53/ wäre ein Zähler statt einer Sammlung. Details in [`../specs/09-sticker.md`](../specs/09-sticker.md). |
@@ -401,6 +409,7 @@ gesetzt werden müssen.
 | Neue Seite | Klasse von `BasisSeite` ableiten und in `gui/app.py` eintragen |
 | Neue Zugangsart | `zugriff.py` ergänzen und den Seitenaufbau in `gui/app.py` prüfen |
 | Neuer Schritt in der Kasse | `SCHRITT_*`-Konstante, `_schritt_X_bauen()` und ein Eintrag in `self.schritte` in `gui/seite_kasse.py` |
+| Andere Größenspanne | `GROESSEN_JE_KATEGORIE` in `konfiguration.py` — Damen und Herren getrennt |
 | Neues Stickermotiv | Bild nach `assets/sticker/`, Eintrag in `MOTIVE` in `modelle/sticker.py`. Achtung: `STICKER_PRO_EINKAUF` × `STARTERSET_MINDESTBESTELLUNGEN` sollte weiterhin der Zahl der Motive entsprechen |
 | Anderer Setinhalt oder andere Bedingung | `STARTERSET_INHALT` bzw. `STARTERSET_MINDESTBESTELLUNGEN` in `konfiguration.py` |
 | Farbe ändern | zuerst `DESIGN.md`, dann `design.py` und `htw_saar_theme.json` — beide Modi im selben Farbpaar |

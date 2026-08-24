@@ -20,7 +20,7 @@ ohne Internet und ohne Server.
 | **Oberfläche** | CustomTkinter 5.2+ |
 | **Datenbank** | SQLite (eine lokale Datei `fanshop.db`) |
 | **Diagramme** | matplotlib (optional, nur für die Kann-Kriterien) |
-| **Tests** | `unittest` aus der Standardbibliothek — 134 Tests |
+| **Tests** | `unittest` aus der Standardbibliothek — 177 Tests |
 | **Betriebssysteme** | Windows, macOS, Linux |
 | **Fenstergröße** | mindestens 1280 × 800 |
 | **Umfang** | rund 8.000 Zeilen Python in 50 Dateien |
@@ -45,9 +45,11 @@ Das war alles. Beim ersten Start passiert automatisch:
 1. Die Datenbank `fanshop.db` wird im Projektverzeichnis angelegt.
 2. Alle Tabellen werden erzeugt.
 3. Testdaten werden eingespielt: 31 Artikel mit echten Produktfotos und den
-   Preisen des htw-saar-Webshops, 5 Kunden, 2 Sonderaktionen und 9
-   Beispielbestellungen der letzten Wochen — samt gefüllten Sticker-Alben. Eine
-   Kundin hat bereits drei Einkäufe, also die volle Sammlung und das Starterset.
+   Preisen des htw-saar-Webshops — jeder Artikel genau einmal, die sechs
+   Textilien je einmal für Damen und für Herren. Dazu 5 Kunden,
+   2 Sonderaktionen und 9 Beispielbestellungen der letzten Wochen — samt
+   gefüllten Sticker-Alben. Eine Kundin hat bereits drei Einkäufe, also die
+   volle Sammlung und das Starterset.
 
 Bei jedem weiteren Start wird nichts überschrieben — die Anwendung startet mit
 den vorhandenen Daten.
@@ -104,14 +106,20 @@ Rechts stehen Anschrift, Sammelstand („4 von 6 Sammelstickern") und ein offene
 Newsletter-Gutschein.
 
 **2. Artikel** — über Suchfeld, Kategorie oder Preisspanne finden. Die markierte
-Zeile zeigt rechts das Produktfoto mit Preis und Bestand. Menge eintragen,
-**In den Warenkorb** — oder Doppelklick auf die Zeile.
+Zeile zeigt rechts das Produktfoto mit Preis und Bestand. Menge eintragen, bei
+Kleidung die **Größe** aus der Liste wählen, **In den Warenkorb** — oder
+Doppelklick auf die Zeile.
+
+Die Größenliste füllt sich passend zum markierten Artikel: Damen S–XL, Herren
+S–5XL. Bei allem, was keine Größe hat, bleibt das Feld gesperrt.
 
 Oben in der Strecke sieht man jederzeit, wo man steht; anklicken springt zurück
 und, wenn schon Ware im Korb liegt, auch vorwärts.
 
-**3. Warenkorb** — Mengen ändern, Positionen entfernen. Rechts steht jede
-Rabattzeile einzeln: Artikelrabatt, laufende Sonderaktion, Newsletter-Gutschein.
+**3. Warenkorb** — Mengen ändern, Positionen entfernen. Jede Zeile führt ihre
+Größe mit; derselbe Pullover in M und in L sind zwei getrennte Zeilen. Rechts
+steht jede Rabattzeile einzeln: Artikelrabatt, laufende Sonderaktion,
+Newsletter-Gutschein.
 
 **4. Abschluss** — der fertige Beleg mit Endbetrag. **Kauf abschließen** bucht
 Bestellung und Rechnung, zieht den Lagerbestand ab und zeigt die zwei
@@ -119,6 +127,45 @@ Sammelsticker, die der Kunde bekommt. Ist die Sammlung damit vollständig, liegt
 das **Starterset** bei (siehe unten).
 
 ![Kasse, Schritt 4](docs/bilder/kasse-abschluss-hell.png)
+
+---
+
+## Sortiment und Größen
+
+**Jeder Artikel kommt genau einmal vor.** Früher stand dasselbe Produkt mehrfach
+im Katalog, weil jede Größe eine eigene Zeile brauchte (die Fleecejacke etwa
+zweimal, in M und L, und nur bei Herren). Das ist aufgeräumt: Ein Kleidungsstück
+ist **ein** Artikel, und die Größe wird beim Bestellen gewählt.
+
+**Damen und Herren führen dasselbe Sortiment.** Beide Kategorien haben dieselben
+sechs Textilien — T-Shirt, Poloshirt, Hoodie, Fleecejacke, Sport-Shirt und
+Regenbogen-Shirt. Unterschiedlich ist nur die Größenspanne:
+
+| Kategorie | Größen |
+|---|---|
+| **Damen** | S · M · L · XL |
+| **Herren** | S · M · L · XL · XXL · 3XL · 4XL · 5XL |
+| alle übrigen Kategorien | keine Größe |
+
+Die Spannen stehen an einer einzigen Stelle — `GROESSEN_JE_KATEGORIE` in
+[fanshop/konfiguration.py](fanshop/konfiguration.py). Wer eine Größe ergänzen
+will, ändert nur dort.
+
+**Wo die Größe auftaucht:**
+
+- **Kasse, Schritt 2** — Auswahlliste neben der Menge, gefüllt passend zum
+  markierten Artikel. Ohne Größe kein Kleidungsstück im Korb.
+- **Kasse, Schritt 3** — eigene Spalte im Warenkorb. Derselbe Artikel in zwei
+  Größen sind zwei Zeilen, die sich getrennt ändern und entfernen lassen.
+- **Bestellung** — die gewählte Größe steht auf der Bestellposition und damit
+  auf dem Beleg.
+- **Retouren** — zurückgegeben wird eine **Position**, nicht ein Artikel. Wer
+  den Hoodie in L zurückbringt, lässt den in M unberührt.
+- **Sortiment** — die Maske zeigt die Spanne der Kategorie an. Sie ist keine
+  Eingabe: Sie gilt für alle Artikel dieser Kategorie.
+
+**Lagerbestand zählt je Artikel, nicht je Größe.** 10 Hoodies auf Lager heißt
+10 insgesamt — der Verkaufsstand führt kein Größenlager.
 
 ---
 
@@ -188,7 +235,7 @@ SoftwareprojektSoSe26/
 │   ├── repositories/        Datenzugriff — der einzige Ort mit SQL
 │   ├── logik/               Geschäftslogik (Kasse, Retouren, Berichte)
 │   └── gui/                 Oberfläche (CustomTkinter)
-├── tests/                   134 automatische Tests
+├── tests/                   177 automatische Tests
 ├── specs/                   ein Kurzsteckbrief je Baustein
 ├── docs/                    Dokumentation (siehe unten)
 └── assets/                  Produktfotos, Sticker, htw-saar-Logos
@@ -217,7 +264,7 @@ GUI  →  Logik (Services)  →  Repositories  →  Datenbank
 
 Jede Schicht kennt nur die Schicht unter sich. Die Oberfläche enthält keine
 Rechnung und kein SQL; die Geschäftslogik läuft vollständig ohne Fenster —
-genau das machen die 134 Tests. Details in
+genau das machen die 177 Tests. Details in
 [docs/Architektur.md](docs/Architektur.md).
 
 ---

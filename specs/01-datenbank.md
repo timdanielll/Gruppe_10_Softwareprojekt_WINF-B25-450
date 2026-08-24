@@ -24,9 +24,11 @@ Bewegungsdaten: `bestellung`, `bestellposition`, `retoure`
 Alle Tabellen entsprechen Kapitel 6 des Pflichtenhefts. **Drei Abweichungen**
 (siehe `docs/Architektur.md`, Abschnitt Abweichungen):
 
-1. `artikel.groesse TEXT` — zusätzliches Merkmal für Damen/Herren. Das Lastenheft
-   verlangt kategorieabhängige Merkmale; ohne diese Spalte gäbe es keine
-   sinnvolle Vererbung im Datenmodell.
+1. `bestellposition.groesse TEXT` — die beim Bestellen gewählte Größe. Das
+   Lastenheft verlangt kategorieabhängige Merkmale; die Spanne selbst hängt an
+   der Kategorie (`GROESSEN_JE_KATEGORIE`), die konkrete Wahl gehört zur
+   Bestellung. Am Artikel steht keine Größe — jedes Kleidungsstück gibt es
+   genau einmal und in allen Größen seiner Kategorie.
 2. `artikel.bildpfad TEXT` — Dateiname des Produktfotos in `assets/artikel/`.
 3. Tabelle `sonderaktion` — das Lastenheft fordert aktivierbare Spezialangebote.
    Ohne Tabelle würde der Aktivierungsstatus einen Neustart nicht überleben.

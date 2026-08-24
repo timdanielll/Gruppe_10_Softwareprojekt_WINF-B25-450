@@ -45,7 +45,8 @@ Newsletter-Gutschein ja/nein. Das entspricht Kapitel 2.3 des Pflichtenhefts
 
 Zwei Details, die im Alltag wichtig sind:
 
-- `artikel_hinzufuegen()` lädt den Artikel **frisch aus der Datenbank**. Der
+- `artikel_hinzufuegen()` nimmt bei Kleidung eine **Größe** entgegen und lädt
+  den Artikel **frisch aus der Datenbank**. Der
   Lagerbestand kann sich seit dem Aufbau der Artikelliste geändert haben, etwa
   durch eine Retoure am anderen Ende des Programms.
 - `kauf_abschliessen()` prüft **vor** dem Buchen noch einmal jeden Bestand.
@@ -61,6 +62,9 @@ Sticker, kein Starterset und keinen Newsletter-Rabatt.
   `specs/09-sticker.md`.
 - `KundenService.starterset_stand()` liefert der Kartei, wo ein Kunde beim
   Sonderangebot steht (erhalten, oder wie viele Einkäufe noch fehlen).
+- `RetourenService.retoure_buchen()` arbeitet mit der **Positionsnummer**, nicht
+  mit der Artikelnummer: Derselbe Artikel kann in zwei Größen in einer
+  Bestellung stehen.
 
 ## Fehlerbehandlung (/NF11/)
 

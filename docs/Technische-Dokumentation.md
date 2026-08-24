@@ -70,7 +70,7 @@ with datenbank.transaktion() as verb: ... # alles oder nichts (/NF30/)
 
 | Datei | Klassen | Besonderheit |
 |---|---|---|
-| `artikel.py` | `Artikel`, `Kleidungsartikel` | Vererbung + Fabrikmethode `aus_zeile()` |
+| `artikel.py` | `Artikel`, `Kleidungsartikel` | Vererbung + Fabrikmethode `aus_zeile()`; `groessen` kommt aus der Kategorie |
 | `kunde.py` | `Kunde` | `darf_newsletter_rabatt_nutzen` |
 | `bestellung.py` | `Bestellung`, `Bestellposition` | `kunde_anzeige` fängt gelöschte Kunden ab |
 | `retoure.py` | `Retoure` | — |
@@ -209,7 +209,7 @@ kassen_service.kauf_abschliessen()
    │        • starterset.anspruch_besteht()  → Set fällig? (3 Käufe + volles Album)
    ├── 5. bestell_repository.kauf_verbuchen()  ← EINE Transaktion:
    │        • INSERT bestellung (mit sticker_ausgegeben, starterset_ausgegeben)
-   │        • INSERT bestellposition (je Position)
+   │        • INSERT bestellposition (je Position, mit gewaehlter Groesse)
    │        • UPDATE artikel  SET lagerbestand = lagerbestand − menge
    │        • UPDATE kunde    SET sticker_kontostand = … + Zahl der Motive
    │        • INSERT kunde_sticker (je Motiv, ON CONFLICT → DO NOTHING)
@@ -321,7 +321,7 @@ Bericht „vom 1. bis 1. August" leer.
 | /NF11/ | verständliche Fehlerdialoge | `FanshopFehler` mit deutschem Text → `bausteine.fehler_zeigen()`; zusätzlich rote Zeile unter dem betroffenen Feld und ein Eintrag in der Statuszeile |
 | /NF12/ | linearer Kassenablauf | Die Seite Kasse ist eine **Strecke aus vier Schritten** mit „Zurück" und „Weiter": 1. Kunde, 2. Artikel, 3. Warenkorb und Rabatte, 4. Abschluss. Pro Schritt steht nur, was dort gebraucht wird. |
 | /NF20/ | objektorientiertes Design | drei Vererbungshierarchien (siehe Architektur, Kapitel 4), Kapselung über `_`-Methoden, Fabrikmethode `Artikel.aus_zeile()` |
-| /NF21/ | Trennung Frontend/Backend | vier Schichten, Aufrufrichtung nur nach unten; alle 134 Tests laufen ohne GUI |
+| /NF21/ | Trennung Frontend/Backend | vier Schichten, Aufrufrichtung nur nach unten; alle 177 Tests laufen ohne GUI |
 | /NF30/ | keine korrupten Daten | `PRAGMA foreign_keys = ON`, `Datenbank.transaktion()`, Kauf und Retoure jeweils als eine Transaktion |
 
 ---
@@ -339,11 +339,14 @@ Hand — diese Liste dauert etwa zehn Minuten.
 | 2 | Kunde „Anna Becker" anklicken | Rechts erscheinen Anschrift, Stickerstand und der Gutschein-Hinweis; unten meldet die Statuszeile „Anna Becker ausgewählt." |
 | 3 | **Weiter** | Schritt 2 „Artikel", Schritt 1 ist golden umrandet |
 | 4 | Suchfeld: `htw` tippen | Liste wird beim Tippen kürzer, ohne Ruckeln |
-| 5 | Eine Zeile anklicken | Rechts erscheinen Produktfoto, Kategorie, Größe, Preis und Bestand |
+| 5 | Eine Zeile anklicken | Rechts erscheinen Produktfoto, Kategorie, Preis und Bestand; bei Kleidung füllt sich die Größenliste |
 | 6 | Kategorie „Schreibwaren" wählen | Nur Schreibwaren, Suchtext bleibt wirksam |
 | 7 | Preis ab `100`, Preis bis `10`, **Filtern** | Dialog: „Der Mindestpreis darf nicht größer …" |
 | 8 | **Zurücksetzen** | Alle Filter leer, volle Liste |
 | 9 | Menge `999`, **In den Warenkorb** | Dialog: „… sind nur noch N Stück auf Lager" |
+| 9b | Einen Herren-Hoodie markieren | Größenliste zeigt S bis 5XL; bei einer Tasse ist das Feld gesperrt |
+| 9c | Größe „5XL" wählen, **In den Warenkorb** | Statuszeile meldet „1 × … (Gr. 5XL)" |
+| 9d | Denselben Hoodie in „M" dazulegen | Der Warenkorb zeigt **zwei** Zeilen mit verschiedenen Größen |
 | 10 | Artikel doppelklicken | Liegt im Korb; Statuszeile meldet es, oben rechts steht der neue Korbstand |
 | 11 | **Weiter** | Schritt 3 „Warenkorb" mit allen Positionen |
 | 12 | Haken „Newsletter-Rabatt" setzen | Eine weitere Rabattzeile, „Zu zahlen" sinkt um 10 % |
@@ -369,7 +372,8 @@ Hand — diese Liste dauert etwa zehn Minuten.
 | 24b | Unter der Aktionstabelle nachsehen | Der Hinweis auf das dauerhafte Starterset-Sonderangebot bleibt sichtbar — er wird von keiner Aktion abgelöst |
 | 25 | **Alle beenden** | Kein „aktiv" mehr; die Rabattzeile verschwindet aus der Kasse |
 | 26 | Retouren: Bestellnummer aus Schritt 15 eingeben | Positionen der Bestellung erscheinen |
-| 27 | Position wählen, Menge 1, **Retoure buchen** | Dialog mit Erstattungsbetrag; „Offen" sinkt um 1 |
+| 27 | Position wählen, Menge 1, **Retoure buchen** | Dialog mit Erstattungsbetrag samt Größe; „Offen" sinkt um 1 |
+| 27b | Bei zwei Größen desselben Artikels die eine ganz zurückgeben | Nur diese Zeile wird grau — die andere Größe bleibt offen |
 | 28 | Dieselbe Position über die Menge hinaus | Dialog: „Es können nur noch N Stück …" |
 | 28b | Position vollständig zurückgeben | Zeile wird grau und zeigt „zurück" statt 0 |
 | 28c | Auf die graue Zeile klicken und buchen | Nur eine Zeile in der Statusleiste, **kein** Dialog |
@@ -401,7 +405,7 @@ Diagramme sind Kann-Kriterien (/F26/, /F27/).
 
 **Wo kommen die Artikel her?**
 Aus `assets/artikel/katalog.json`. Die Datei ordnet jedem der 31 Produktfotos
-Titel, Kategorie, Größe, Beschreibung und Preis zu. Wer einen Artikel umbenennen
+Titel, Kategorie, Beschreibung und Preis zu — ohne Größe. Wer einen Artikel umbenennen
 will, ändert die Datei und löscht `fanshop.db`.
 
 **Stimmen die Preise?**
@@ -410,6 +414,24 @@ Textilien, Accessoires, Schreibwaren, Print). Ein Schlüsselband kostet dort
 1,95 €, eine Fleecejacke 32,50 €. Vier Artikel (Klappkarte, Briefpapier,
 Kartenetui, Stiftemäppchen) gibt es im echten Shop nicht; ihre Preise sind
 geschätzt.
+
+**Warum steht die Größe nicht am Artikel?**
+Weil sonst jedes Kleidungsstück so oft im Sortiment stünde, wie es Größen gibt —
+ein Herren-Hoodie achtmal. Genau daher kam die doppelte Fleecejacke. Jetzt gibt
+es jeden Artikel einmal; die Größe wird beim Bestellen gewählt und auf der
+Bestellposition festgehalten. Welche Größen möglich sind, hängt an der Kategorie
+(`GROESSEN_JE_KATEGORIE`): Damen S–XL, Herren S–5XL.
+
+**Warum hängt die Retoure an der Position und nicht am Artikel?**
+Weil derselbe Artikel seit der Größenwahl zweimal in einer Bestellung stehen
+kann — ein Hoodie in M und einer in L. Würde die Retoure nur die Artikelnummer
+kennen, würde eine Rückgabe beide Zeilen belasten. Deshalb trägt `retoure` eine
+`position_id`.
+
+**Gibt es getrennte Lagerbestände je Größe?**
+Nein. Der Bestand wird je Artikel geführt: 10 Hoodies heißt 10 insgesamt. Für
+einen Verkaufsstand mit einer Kiste hinter dem Tresen ist das die ehrlichere
+Abbildung als ein Größenlager, das niemand pflegt.
 
 **Warum bekommt ein Kunde zwei verschiedene Sticker und nicht zweimal denselben?**
 Weil im Assets-Ordner sechs Motive liegen und aus einem Zähler sonst keine

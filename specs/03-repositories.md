@@ -15,6 +15,7 @@ Die einzige Stelle im Programm, an der SQL steht.
 | `basis_repository.py` | — | `anzahl`, `existiert`, `loeschen` |
 | `artikel_repository.py` | `artikel` | `speichern`, `suchen`, `deaktivieren`, `umsatzstaerkste`, `haeufigste` |
 | `kunden_repository.py` | `kunde`, `kunde_sticker` | `speichern`, `suchen`, `loeschen_und_anonymisieren`, `newsletter_setzen`, `sticker_album`, `starterset_erhalten` |
+| `bestell_repository.py` | `retoure` | `bereits_retourniert` zählt je **Position**, nicht je Artikel — sonst würden sich zwei Größen gegenseitig aufbrauchen |
 | `bestell_repository.py` | `bestellung`, `bestellposition`, `retoure` | `kauf_verbuchen`, `retoure_verbuchen`, `positionen_zu` |
 | `bericht_repository.py` | Auswertungen | `kennzahlen`, `umsatzanteile`, `umsatz_je_kategorie` |
 | `sonderaktion_repository.py` | `sonderaktion` | `aktive`, `aktivieren` |

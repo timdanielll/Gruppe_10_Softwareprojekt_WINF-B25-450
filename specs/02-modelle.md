@@ -28,13 +28,15 @@ Es gibt drei echte Hierarchien im Projekt — keine davon ist künstlich:
 
 1. **`Artikel` → `Kleidungsartikel`**
    Lastenheft: "Artikel haben in Abhängigkeit ihrer Kategorie weitere Merkmale
-   (Herren / Damen, Größe etc.)". `Kleidungsartikel` hat zusätzlich `groesse`
-   und überschreibt zwei Methoden:
+   (Herren / Damen, Größe etc.)". `Kleidungsartikel` kennt die Größenspanne
+   seiner Kategorie (Damen S–XL, Herren S–5XL) und überschreibt drei Stellen:
+   - `groessen` — die wählbaren Größen, aus `GROESSEN_JE_KATEGORIE`.
    - `merkmale()` — die GUI ruft immer nur `artikel.merkmale()` auf und muss
      nicht wissen, welche Artikelart vorliegt (Polymorphie).
-   - `groesse_wert()` — liefert den Wert für die Datenbankspalte.
+   - `groesse_pruefen()` — nimmt nur Größen dieser Kategorie an.
    Welche Klasse entsteht, entscheidet die Fabrikmethode `Artikel.aus_zeile()`
-   anhand der Kategorie.
+   anhand der Kategorie. Die **gewählte** Größe steht nicht am Artikel, sondern
+   an der Warenkorbzeile und später an der Bestellposition.
 2. **`BasisRepository` → alle fünf Repositories** (siehe Spec 03).
 3. **`BasisSeite` → alle fünf GUI-Seiten** (siehe Spec 08).
 
