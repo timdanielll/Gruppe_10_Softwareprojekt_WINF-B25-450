@@ -34,9 +34,13 @@ CREATE TABLE IF NOT EXISTS artikel (
     lagerbestand     INTEGER NOT NULL,
     erstellungsdatum TEXT    NOT NULL,          -- ISO 8601: YYYY-MM-DD
     aktiv            INTEGER NOT NULL DEFAULT 1,-- 1 = sichtbar, 0 = deaktiviert
-    groesse          TEXT,                      -- nur bei Damen/Herren gefuellt
     bildpfad         TEXT                       -- Dateiname in assets/artikel/
 );
+-- Hinweis zur Groesse: Sie steht bewusst NICHT am Artikel. Jedes Kleidungs-
+-- stueck gibt es genau einmal und in allen Groessen seiner Kategorie (Damen
+-- S-XL, Herren S-5XL, siehe konfiguration.GROESSEN_JE_KATEGORIE). Gewaehlt
+-- wird beim Bestellen, gespeichert wird die Wahl in bestellposition.groesse.
+-- Der Lagerbestand wird je Artikel gefuehrt, nicht je Groesse.
 
 
 -- 6.3 Bewegungsdaten: Bestellung ---------------------------------------------
@@ -59,20 +63,26 @@ CREATE TABLE IF NOT EXISTS bestellposition (
     artikel_id         INTEGER NOT NULL,
     menge              INTEGER NOT NULL,
     historischer_preis REAL    NOT NULL,        -- tatsaechlich gezahlter Einzelpreis
+    groesse            TEXT,                    -- beim Kauf gewaehlt, NULL ohne Groesse
     FOREIGN KEY (bestellnummer) REFERENCES bestellung (bestellnummer) ON DELETE CASCADE,
     FOREIGN KEY (artikel_id)    REFERENCES artikel (artikel_id)
 );
 
 
 -- 6.5 Bewegungsdaten: Retoure ------------------------------------------------
+-- position_id statt nur artikel_id: Derselbe Artikel kann in einer Bestellung
+-- in zwei Groessen liegen. Erst die Positionsnummer sagt eindeutig, welche
+-- Zeile zurueckgeht - sonst wuerde eine Retoure beide Groessen belasten.
 CREATE TABLE IF NOT EXISTS retoure (
     retouren_id       INTEGER PRIMARY KEY AUTOINCREMENT,
     bestellnummer     INTEGER NOT NULL,
+    position_id       INTEGER,                  -- Bestellzeile, auf die sich die Rueckgabe bezieht
     artikel_id        INTEGER NOT NULL,
     menge             INTEGER NOT NULL,
     retouren_datum    TEXT    NOT NULL,         -- ISO 8601: YYYY-MM-DD HH:MM:SS
     erstattungsbetrag REAL    NOT NULL,         -- menge * historischer_preis
     FOREIGN KEY (bestellnummer) REFERENCES bestellung (bestellnummer),
+    FOREIGN KEY (position_id)   REFERENCES bestellposition (position_id),
     FOREIGN KEY (artikel_id)    REFERENCES artikel (artikel_id)
 );
 
@@ -115,3 +125,6 @@ CREATE INDEX IF NOT EXISTS idx_artikel_kategorie      ON artikel (kategorie);
 CREATE INDEX IF NOT EXISTS idx_bestellung_zeit        ON bestellung (zeitstempel);
 CREATE INDEX IF NOT EXISTS idx_position_bestellnummer ON bestellposition (bestellnummer);
 CREATE INDEX IF NOT EXISTS idx_position_artikel       ON bestellposition (artikel_id);
+-- Der Index auf retoure.position_id wird erst in Datenbank._schema_nachziehen()
+-- angelegt: In einer aelteren Datenbankdatei gibt es die Spalte noch nicht,
+-- und dieses Skript laeuft vor dem Nachtragen der Spalten.
