@@ -15,6 +15,7 @@ class MotivvergabeTest(unittest.TestCase):
     """Die Vergabe rechnet nur - dafür braucht es keine Datenbank."""
 
     def test_zwei_verschiedene_motive_pro_kauf(self):
+        """Zwei verschiedene Motive pro Kauf."""
         motive = sticker.motive_fuer_kauf(0)
         self.assertEqual(len(motive), konfiguration.STICKER_PRO_EINKAUF)
         self.assertEqual(len({m.schluessel for m in motive}), 2)
@@ -27,6 +28,7 @@ class MotivvergabeTest(unittest.TestCase):
         self.assertEqual(len(alle), len(sticker.MOTIVE))
 
     def test_die_reihenfolge_bleibt_die_der_liste(self):
+        """Die Reihenfolge bleibt die der Liste."""
         self.assertEqual(
             [m.schluessel for m in sticker.motive_fuer_kauf(2)],
             [sticker.MOTIVE[2].schluessel, sticker.MOTIVE[3].schluessel],
@@ -42,7 +44,7 @@ class MotivvergabeTest(unittest.TestCase):
         self.assertEqual(len(sticker.motive_fuer_kauf(len(sticker.MOTIVE) - 1)), 1)
 
     def test_vergabe_ist_wiederholbar(self):
-        """Kein Zufall - sonst waeren die Tests unzuverlaessig."""
+        """Kein Zufall - sonst wären die Tests unzuverlässig."""
         self.assertEqual(
             [m.schluessel for m in sticker.motive_fuer_kauf(4)],
             [m.schluessel for m in sticker.motive_fuer_kauf(4)],
@@ -59,14 +61,17 @@ class MotivvergabeTest(unittest.TestCase):
         )
 
     def test_offene_motive_ist_leer_bei_vollem_album(self):
+        """Offene Motive ist leer bei vollem Album."""
         album = {m.schluessel: 1 for m in sticker.MOTIVE}
         self.assertEqual(sticker.offene_motive(album), [])
 
     def test_jedes_motiv_hat_eine_bilddatei(self):
+        """Jedes Motiv hat eine bilddatei."""
         for motiv in sticker.MOTIVE:
             self.assertTrue(motiv.pfad.exists(), f"Bild fehlt: {motiv.pfad}")
 
     def test_fortschritt_zaehlt_verschiedene_motive(self):
+        """Fortschritt zählt verschiedene Motive."""
         self.assertEqual(sticker.album_fortschritt({}), (0, 6))
         self.assertEqual(sticker.album_fortschritt({"campus": 1}), (1, 6))
         self.assertEqual(
@@ -74,6 +79,7 @@ class MotivvergabeTest(unittest.TestCase):
         )
 
     def test_vollstaendigkeit(self):
+        """Vollständigkeit."""
         self.assertFalse(sticker.album_vollstaendig({"campus": 1}))
         self.assertTrue(
             sticker.album_vollstaendig({m.schluessel: 1 for m in sticker.MOTIVE})
@@ -84,16 +90,19 @@ class AlbumTest(FanshopTest):
     """Das Album wird beim Kauf mitgeschrieben."""
 
     def setUp(self) -> None:
+        """Ein Kunde und ein Artikel mit reichlich Bestand."""
         super().setUp()
         self.artikel = self.artikel_anlegen(lagerbestand=50)
         self.kunde = self.kunde_anlegen()
 
     def _kaufen(self):
+        """Kauft einmal ein und gibt den Kaufbeleg zurueck."""
         self.kassen_service.kunde_waehlen(self.kunde.kundennummer)
         self.kassen_service.artikel_hinzufuegen(self.artikel.artikel_id, 1)
         return self.kassen_service.kauf_abschliessen()
 
     def test_kauf_fuellt_das_album(self):
+        """Kauf füllt das Album."""
         beleg = self._kaufen()
         album = self.kunden_service.sticker_album(self.kunde.kundennummer)
 
@@ -102,6 +111,7 @@ class AlbumTest(FanshopTest):
         self.assertEqual(beleg.album_stand, (2, 6))
 
     def test_drei_kaeufe_vervollstaendigen_das_album(self):
+        """Drei Käufe vervollständigen das Album."""
         for _ in range(2):
             self._kaufen()
         beleg = self._kaufen()
@@ -121,6 +131,7 @@ class AlbumTest(FanshopTest):
         self.assertEqual(sum(album.values()), 6)
 
     def test_kauf_mit_vollem_album_gibt_keine_sticker(self):
+        """Kauf mit vollem Album gibt keine Sticker."""
         for _ in range(3):
             self._kaufen()
         beleg = self._kaufen()
@@ -138,7 +149,7 @@ class AlbumTest(FanshopTest):
         self.assertEqual(kunde.sticker_kontostand, len(sticker.MOTIVE))
 
     def test_zaehler_und_album_bleiben_gleich(self):
-        """sticker_kontostand muss immer der Summe im Album entsprechen."""
+        """Sticker_kontostand muss immer der Summe im Album entsprechen."""
         for _ in range(5):
             self._kaufen()
 
@@ -163,6 +174,7 @@ class AlbumTest(FanshopTest):
         )
 
     def test_laufkundschaft_bekommt_kein_album(self):
+        """Laufkundschaft bekommt kein Album."""
         self.kassen_service.kunde_abwaehlen()
         self.kassen_service.artikel_hinzufuegen(self.artikel.artikel_id, 1)
         beleg = self.kassen_service.kauf_abschliessen()
@@ -180,7 +192,7 @@ class AlbumTest(FanshopTest):
         self.assertEqual(beleg.sticker, konfiguration.STICKER_PRO_EINKAUF)
 
     def test_album_verschwindet_mit_dem_kunden(self):
-        """Loeschen des Kunden raeumt das Album mit ab (ON DELETE CASCADE)."""
+        """Löschen des Kunden räumt das Album mit ab (ON DELETE CASCADE)."""
         self._kaufen()
         self.kunden_service.loeschen(self.kunde.kundennummer)
 

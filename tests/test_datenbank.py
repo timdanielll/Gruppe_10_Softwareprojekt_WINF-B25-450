@@ -34,18 +34,49 @@ CREATE TABLE kunde_sticker (
     anzahl       INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (kundennummer, motiv)
 );
+CREATE TABLE artikel (
+    artikel_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    kategorie        TEXT    NOT NULL,
+    titel            TEXT    NOT NULL,
+    beschreibung     TEXT,
+    preis            REAL    NOT NULL,
+    rabattsatz       REAL    NOT NULL DEFAULT 0.0,
+    lagerbestand     INTEGER NOT NULL,
+    erstellungsdatum TEXT    NOT NULL,
+    aktiv            INTEGER NOT NULL DEFAULT 1,
+    groesse          TEXT,
+    bildpfad         TEXT
+);
+CREATE TABLE bestellposition (
+    position_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    bestellnummer      INTEGER NOT NULL,
+    artikel_id         INTEGER NOT NULL,
+    menge              INTEGER NOT NULL,
+    historischer_preis REAL    NOT NULL
+);
+CREATE TABLE retoure (
+    retouren_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    bestellnummer     INTEGER NOT NULL,
+    artikel_id        INTEGER NOT NULL,
+    menge             INTEGER NOT NULL,
+    retouren_datum    TEXT    NOT NULL,
+    erstattungsbetrag REAL    NOT NULL
+);
 """
 
 
 class DatenbankTest(unittest.TestCase):
 
     def setUp(self) -> None:
+        """Legt eine frische Datenbank im Arbeitsspeicher an."""
         self.datenbank = datenbank_vorbereiten(":memory:")
 
     def tearDown(self) -> None:
+        """Schliesst die Testdatenbank."""
         self.datenbank.schliessen()
 
     def test_alle_tabellen_werden_angelegt(self):
+        """Alle Tabellen werden angelegt."""
         zeilen = self.datenbank.abfragen(
             "SELECT name FROM sqlite_master WHERE type = 'table'"
         )
@@ -71,6 +102,7 @@ class DatenbankTest(unittest.TestCase):
         self.assertEqual(zeile["n"], 1)
 
     def test_fremdschluessel_sind_eingeschaltet(self):
+        """Fremdschlüssel sind eingeschaltet."""
         zeile = self.datenbank.abfragen_eine("PRAGMA foreign_keys")
         self.assertEqual(zeile[0], 1)
 
@@ -89,6 +121,7 @@ class DatenbankTest(unittest.TestCase):
         self.assertEqual(zeile["n"], 0)
 
     def test_zeilen_lassen_sich_wie_ein_woerterbuch_lesen(self):
+        """Zeilen lassen sich wie ein Wörterbuch lesen."""
         self.datenbank.ausfuehren(
             "INSERT INTO kunde (name, strasse, plz, ort) VALUES (?, ?, ?, ?)",
             ("Anna Becker", "Waldhausweg 14", 66123, "Saarbrücken"),
@@ -110,6 +143,7 @@ class DatenbankTest(unittest.TestCase):
         self.assertIn("starterset_ausgegeben", spalten)
 
     def test_eigener_pfad_wird_uebernommen(self):
+        """Ein eigener Datenbankpfad wird übernommen."""
         datenbank = Datenbank(":memory:")
         self.assertEqual(datenbank.pfad, ":memory:")
         datenbank.schliessen()
@@ -124,6 +158,7 @@ class SchemaNachziehenTest(unittest.TestCase):
     """
 
     def setUp(self) -> None:
+        """Baut eine Datenbankdatei im alten Schema als Ausgangslage."""
         self.verzeichnis = tempfile.TemporaryDirectory()
         self.pfad = Path(self.verzeichnis.name) / "alt.db"
 
@@ -139,13 +174,33 @@ class SchemaNachziehenTest(unittest.TestCase):
             "INSERT INTO kunde_sticker (kundennummer, motiv, anzahl) VALUES (1, ?, ?)",
             [("campus", 3), ("htwsaar", 3), ("kneipe", 3)],
         )
+        # Ein Kleidungsartikel mit fest eingetragener Groesse, eine Bestellzeile
+        # dazu und eine Retoure, die ihre Position noch nicht kennt.
+        alt.execute(
+            """INSERT INTO artikel
+                   (artikel_id, kategorie, titel, preis, lagerbestand,
+                    erstellungsdatum, groesse)
+               VALUES (7, 'Herren', 'Hoodie htw saar', 39.95, 5, '2026-01-01', 'L')"""
+        )
+        alt.execute(
+            """INSERT INTO bestellposition
+                   (position_id, bestellnummer, artikel_id, menge, historischer_preis)
+               VALUES (3, 1, 7, 2, 39.95)"""
+        )
+        alt.execute(
+            """INSERT INTO retoure
+                   (bestellnummer, artikel_id, menge, retouren_datum, erstattungsbetrag)
+               VALUES (1, 7, 1, '2026-02-01 10:00:00', 39.95)"""
+        )
         alt.commit()
         alt.close()
 
     def tearDown(self) -> None:
+        """Raeumt das Verzeichnis der Testdatei auf."""
         self.verzeichnis.cleanup()
 
     def test_fehlende_spalten_werden_ergaenzt(self):
+        """Fehlende Spalten werden ergänzt."""
         datenbank = datenbank_vorbereiten(self.pfad)
         try:
             kundenspalten = {
@@ -160,6 +215,7 @@ class SchemaNachziehenTest(unittest.TestCase):
             datenbank.schliessen()
 
     def test_doppelte_sticker_werden_auf_einen_reduziert(self):
+        """Doppelte Sticker werden auf einen reduziert."""
         datenbank = datenbank_vorbereiten(self.pfad)
         try:
             zeilen = datenbank.abfragen("SELECT anzahl FROM kunde_sticker")
@@ -168,6 +224,7 @@ class SchemaNachziehenTest(unittest.TestCase):
             datenbank.schliessen()
 
     def test_zaehler_wird_an_das_album_angeglichen(self):
+        """Zähler wird an das Album angeglichen."""
         datenbank = datenbank_vorbereiten(self.pfad)
         try:
             zeile = datenbank.abfragen_eine(
@@ -178,6 +235,7 @@ class SchemaNachziehenTest(unittest.TestCase):
             datenbank.schliessen()
 
     def test_bestehende_daten_bleiben_erhalten(self):
+        """Bestehende Daten bleiben erhalten."""
         datenbank = datenbank_vorbereiten(self.pfad)
         try:
             zeile = datenbank.abfragen_eine("SELECT name FROM kunde WHERE kundennummer = 1")
@@ -185,7 +243,42 @@ class SchemaNachziehenTest(unittest.TestCase):
         finally:
             datenbank.schliessen()
 
+    def test_artikelgroesse_faellt_weg(self):
+        """Die Größe gehört jetzt zur Bestellung, nicht mehr zum Artikel."""
+        datenbank = datenbank_vorbereiten(self.pfad)
+        try:
+            spalten = {
+                z["name"] for z in datenbank.abfragen("PRAGMA table_info(artikel)")
+            }
+            self.assertNotIn("groesse", spalten)
+            # Der Artikel selbst bleibt erhalten.
+            zeile = datenbank.abfragen_eine("SELECT titel FROM artikel WHERE artikel_id = 7")
+            self.assertEqual(zeile["titel"], "Hoodie htw saar")
+        finally:
+            datenbank.schliessen()
+
+    def test_bestellposition_bekommt_eine_groesse(self):
+        """Bestellposition bekommt eine Größe."""
+        datenbank = datenbank_vorbereiten(self.pfad)
+        try:
+            spalten = {
+                z["name"] for z in datenbank.abfragen("PRAGMA table_info(bestellposition)")
+            }
+            self.assertIn("groesse", spalten)
+        finally:
+            datenbank.schliessen()
+
+    def test_alte_retoure_bekommt_ihre_position(self):
+        """Damals gab es je Bestellung und Artikel genau eine Position."""
+        datenbank = datenbank_vorbereiten(self.pfad)
+        try:
+            zeile = datenbank.abfragen_eine("SELECT position_id FROM retoure")
+            self.assertEqual(zeile["position_id"], 3)
+        finally:
+            datenbank.schliessen()
+
     def test_zweiter_start_aendert_nichts_mehr(self):
+        """Zweiter Start ändert nichts mehr."""
         datenbank_vorbereiten(self.pfad).schliessen()
         datenbank = datenbank_vorbereiten(self.pfad)
         try:

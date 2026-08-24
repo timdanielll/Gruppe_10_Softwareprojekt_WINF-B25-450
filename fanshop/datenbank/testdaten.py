@@ -27,14 +27,15 @@ from fanshop.modelle.sticker import offene_motive
 SEKUNDEN_PRO_TAG = 24 * 60 * 60
 
 # Ersatzsortiment, falls assets/artikel/katalog.json fehlt.
-# (titel, kategorie, preis, beschreibung, groesse)
+# (titel, kategorie, preis, beschreibung)
+# Ohne Groesse: Die waehlt der Kunde beim Bestellen, siehe modelle/artikel.py.
 ERSATZ_ARTIKEL = [
-    ("Schlüsselband htw saar", "Accessoires", 4.90, "Buntes Schlüsselband mit Karabinerhaken.", ""),
-    ("Bleistift Fakultäten", "Schreibwaren", 1.50, "Bleistift im Design der vier Fakultäten.", ""),
-    ("Regenschirm Fakultäten", "Accessoires", 19.90, "Stockschirm in den Farben der Hochschule.", ""),
-    ("T-Shirt htw saar, schwarz", "Herren", 19.90, "Baumwoll-T-Shirt mit weißem Aufdruck.", "L"),
-    ("T-Shirt htw saar, weiß", "Damen", 19.90, "Tailliertes Baumwoll-T-Shirt.", "M"),
-    ("Tasse htw saar", "Accessoires", 9.90, "Keramiktasse, spülmaschinenfest.", ""),
+    ("Schlüsselband htw saar", "Accessoires", 4.90, "Buntes Schlüsselband mit Karabinerhaken."),
+    ("Bleistift Fakultäten", "Schreibwaren", 1.50, "Bleistift im Design der vier Fakultäten."),
+    ("Regenschirm Fakultäten", "Accessoires", 19.90, "Stockschirm in den Farben der Hochschule."),
+    ("T-Shirt htw saar, schwarz, Herren", "Herren", 19.90, "Baumwoll-T-Shirt mit weißem Aufdruck."),
+    ("T-Shirt htw saar, schwarz, Damen", "Damen", 19.90, "Tailliertes Baumwoll-T-Shirt."),
+    ("Tasse htw saar", "Accessoires", 9.90, "Keramiktasse, spülmaschinenfest."),
 ]
 
 # Fuenf Testkunden (name, strasse, plz, ort, newsletter)
@@ -86,6 +87,7 @@ def testdaten_anlegen(datenbank: Datenbank, mit_bestellungen: bool = True) -> bo
 
 
 def _artikel_anlegen(datenbank: Datenbank) -> None:
+    """Legt das Sortiment an - aus dem Katalog oder dem Ersatzsortiment."""
     katalog = _artikel_aus_katalog()
     heute = heute_iso()
     zeilen = []
@@ -106,12 +108,11 @@ def _artikel_anlegen(datenbank: Datenbank) -> None:
                     lagerbestand,
                     heute,
                     1,
-                    eintrag.get("groesse") or None,
                     eintrag.get("datei"),
                 )
             )
     else:
-        for nummer, (titel, kategorie, preis, beschreibung, groesse) in enumerate(ERSATZ_ARTIKEL):
+        for nummer, (titel, kategorie, preis, beschreibung) in enumerate(ERSATZ_ARTIKEL):
             zeilen.append(
                 (
                     kategorie,
@@ -122,7 +123,6 @@ def _artikel_anlegen(datenbank: Datenbank) -> None:
                     5 + (nummer * 7) % 26,
                     heute,
                     1,
-                    groesse or None,
                     None,
                 )
             )
@@ -130,13 +130,14 @@ def _artikel_anlegen(datenbank: Datenbank) -> None:
     datenbank.ausfuehren_viele(
         """INSERT INTO artikel
                (kategorie, titel, beschreibung, preis, rabattsatz,
-                lagerbestand, erstellungsdatum, aktiv, groesse, bildpfad)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                lagerbestand, erstellungsdatum, aktiv, bildpfad)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         zeilen,
     )
 
 
 def _kunden_anlegen(datenbank: Datenbank) -> None:
+    """Legt die fuenf Testkunden an."""
     zeilen = [
         (name, strasse, plz, ort, 1 if newsletter else 0, 1 if newsletter else 0, 0, 0)
         for name, strasse, plz, ort, newsletter in TEST_KUNDEN
@@ -151,6 +152,7 @@ def _kunden_anlegen(datenbank: Datenbank) -> None:
 
 
 def _aktionen_anlegen(datenbank: Datenbank) -> None:
+    """Legt die beiden vordefinierten Sonderaktionen an."""
     zeilen = [
         (titel, art, ziel, mindestwert, rabatt, 1 if aktiv else 0)
         for titel, art, ziel, mindestwert, rabatt, aktiv in TEST_AKTIONEN
@@ -178,7 +180,8 @@ def _bestellungen_anlegen(datenbank: Datenbank) -> None:
     ein vollstaendiges Album samt vergebenem Sonderangebot zu sehen.
     """
     artikel = datenbank.abfragen(
-        "SELECT artikel_id, preis, rabattsatz, lagerbestand FROM artikel ORDER BY artikel_id"
+        """SELECT artikel_id, kategorie, preis, rabattsatz, lagerbestand
+           FROM artikel ORDER BY artikel_id"""
     )
     kunden = datenbank.abfragen("SELECT kundennummer FROM kunde ORDER BY kundennummer")
     if not artikel or not kunden:
@@ -215,7 +218,12 @@ def _bestellungen_anlegen(datenbank: Datenbank) -> None:
             for index, menge in zip(artikel_indizes, mengen):
                 zeile = artikel[index % len(artikel)]
                 einzelpreis = runde_geld(zeile["preis"] * (1 - zeile["rabattsatz"]))
-                positionen.append((zeile["artikel_id"], menge, einzelpreis))
+                # Bei Kleidung eine Groesse mitgeben - wie bei einem echten
+                # Kauf. Welche, entscheidet ein festes Muster, damit die
+                # Testdaten auf jedem Rechner gleich aussehen.
+                groessen = konfiguration.groessen_fuer(zeile["kategorie"])
+                groesse = groessen[index % len(groessen)] if groessen else None
+                positionen.append((zeile["artikel_id"], menge, einzelpreis, groesse))
                 gesamtbetrag += einzelpreis * menge
 
             gesamtbetrag = runde_geld(gesamtbetrag)
@@ -250,12 +258,12 @@ def _bestellungen_anlegen(datenbank: Datenbank) -> None:
             )
             bestellnummer = cursor.lastrowid
 
-            for artikel_id, menge, einzelpreis in positionen:
+            for artikel_id, menge, einzelpreis, groesse in positionen:
                 verbindung.execute(
                     """INSERT INTO bestellposition
-                           (bestellnummer, artikel_id, menge, historischer_preis)
-                       VALUES (?, ?, ?, ?)""",
-                    (bestellnummer, artikel_id, menge, einzelpreis),
+                           (bestellnummer, artikel_id, menge, historischer_preis, groesse)
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (bestellnummer, artikel_id, menge, einzelpreis, groesse),
                 )
                 verbindung.execute(
                     "UPDATE artikel SET lagerbestand = lagerbestand - ? WHERE artikel_id = ?",

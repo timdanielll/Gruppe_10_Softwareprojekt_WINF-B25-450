@@ -15,10 +15,12 @@ class SonderaktionModellTest(unittest.TestCase):
             Sonderaktion(titel="Kaputt", art="mindestwert", rabattsatz=1.5)
 
     def test_negativer_rabattsatz_wird_abgelehnt(self):
+        """Negativer Rabattsatz wird abgelehnt."""
         with self.assertRaises(ValidierungsFehler):
             Sonderaktion(titel="Kaputt", art="mindestwert", rabattsatz=-0.1)
 
     def test_null_prozent_ist_erlaubt(self):
+        """Null Prozent ist erlaubt."""
         aktion = Sonderaktion(titel="Ohne Rabatt", art="mindestwert", rabattsatz=0.0)
         self.assertEqual(aktion.rabattsatz, 0.0)
 
@@ -26,6 +28,7 @@ class SonderaktionModellTest(unittest.TestCase):
 class SonderaktionServiceTest(FanshopTest):
 
     def setUp(self) -> None:
+        """Legt zwei Sonderaktionen an, beide zunaechst inaktiv."""
         super().setUp()
         self.erste = self.sonderaktion_anlegen(
             titel="20 % auf Schreibwaren", zielkategorie="Schreibwaren", aktiv=False
@@ -41,12 +44,15 @@ class SonderaktionServiceTest(FanshopTest):
         self.dienst = self.anwendung.sonderaktion_service
 
     def test_alle_aktionen_werden_gelistet(self):
+        """Alle Aktionen werden gelistet."""
         self.assertEqual(len(self.dienst.alle()), 2)
 
     def test_ohne_aktivierung_laeuft_nichts(self):
+        """Ohne Aktivierung läuft nichts."""
         self.assertIsNone(self.dienst.aktive())
 
     def test_aktivieren_setzt_genau_eine_aktion(self):
+        """Aktivieren setzt genau eine Aktion."""
         self.dienst.aktivieren(self.erste.aktions_id)
         aktive = self.dienst.aktive()
 
@@ -63,11 +69,13 @@ class SonderaktionServiceTest(FanshopTest):
         self.assertEqual(sum(1 for a in self.dienst.alle() if a.aktiv), 1)
 
     def test_beenden_schaltet_alles_ab(self):
+        """Beenden schaltet alles ab."""
         self.dienst.aktivieren(self.erste.aktions_id)
         self.dienst.beenden()
         self.assertIsNone(self.dienst.aktive())
 
     def test_unbekannte_aktion(self):
+        """Eine unbekannte Aktionsnummer wird abgelehnt."""
         with self.assertRaises(NichtGefundenFehler):
             self.dienst.aktivieren(9999)
 

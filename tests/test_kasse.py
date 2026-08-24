@@ -10,6 +10,7 @@ from tests.basis import FanshopTest
 class KassenTest(FanshopTest):
 
     def setUp(self) -> None:
+        """Ein Kunde, eine Tasse und ein Stift als Ausgangslage."""
         super().setUp()
         self.tasse = self.artikel_anlegen("Tasse", "Accessoires", preis=10.00, lagerbestand=5)
         self.kunde = self.kunde_anlegen("Anna Becker")
@@ -17,6 +18,7 @@ class KassenTest(FanshopTest):
     # -- /F14/ Kauf abschliessen -------------------------------------------
 
     def test_kauf_erzeugt_bestellung_und_bucht_lager_ab(self):
+        """Kauf erzeugt Bestellung und bucht Lager ab."""
         self.kassen_service.kunde_waehlen(self.kunde.kundennummer)
         self.kassen_service.artikel_hinzufuegen(self.tasse.artikel_id, 2)
 
@@ -28,21 +30,25 @@ class KassenTest(FanshopTest):
         self.assertEqual(self.artikel_service.laden(self.tasse.artikel_id).lagerbestand, 3)
 
     def test_warenkorb_ist_nach_dem_kauf_leer(self):
+        """Warenkorb ist nach dem Kauf leer."""
         self.kassen_service.kunde_waehlen(self.kunde.kundennummer)
         self.kassen_service.artikel_hinzufuegen(self.tasse.artikel_id, 1)
         self.kassen_service.kauf_abschliessen()
         self.assertTrue(self.kassen_service.warenkorb.ist_leer)
 
     def test_leerer_warenkorb_kann_nicht_gebucht_werden(self):
+        """Leerer Warenkorb kann nicht gebucht werden."""
         self.kassen_service.kunde_waehlen(self.kunde.kundennummer)
         with self.assertRaises(ValidierungsFehler):
             self.kassen_service.kauf_abschliessen()
 
     def test_unbekannter_artikel(self):
+        """Unbekannter Artikel."""
         with self.assertRaises(NichtGefundenFehler):
             self.kassen_service.artikel_hinzufuegen(9999, 1)
 
     def test_deaktivierter_artikel_kommt_nicht_in_den_korb(self):
+        """Deaktivierter Artikel kommt nicht in den Warenkorb."""
         self.artikel_service.deaktivieren(self.tasse.artikel_id)
         with self.assertRaises(ValidierungsFehler):
             self.kassen_service.artikel_hinzufuegen(self.tasse.artikel_id, 1)
@@ -58,6 +64,7 @@ class KassenTest(FanshopTest):
     # -- /F53/ Sticker -----------------------------------------------------
 
     def test_sticker_werden_gutgeschrieben(self):
+        """Sticker werden gutgeschrieben."""
         self.kassen_service.kunde_waehlen(self.kunde.kundennummer)
         self.kassen_service.artikel_hinzufuegen(self.tasse.artikel_id, 1)
         beleg = self.kassen_service.kauf_abschliessen()
@@ -67,6 +74,7 @@ class KassenTest(FanshopTest):
         self.assertEqual(kunde.sticker_kontostand, konfiguration.STICKER_PRO_EINKAUF)
 
     def test_laufkundschaft_bekommt_keine_sticker(self):
+        """Laufkundschaft bekommt keine Sticker."""
         self.kassen_service.kunde_abwaehlen()
         self.kassen_service.artikel_hinzufuegen(self.tasse.artikel_id, 1)
         beleg = self.kassen_service.kauf_abschliessen()
@@ -75,6 +83,7 @@ class KassenTest(FanshopTest):
     # -- /F52/ Newsletter-Gutschein ----------------------------------------
 
     def test_newsletter_rabatt_wird_einmal_gewaehrt(self):
+        """Newsletter Rabatt wird einmal gewährt."""
         kunde = self.kunde_anlegen("Clara Schmitt", newsletter=True)
         self.kassen_service.kunde_waehlen(kunde.kundennummer)
         self.assertTrue(self.kassen_service.newsletter_rabatt_moeglich())
@@ -91,6 +100,7 @@ class KassenTest(FanshopTest):
         self.assertFalse(self.kassen_service.newsletter_rabatt_moeglich())
 
     def test_ohne_gutschein_kein_newsletter_rabatt(self):
+        """Ohne Gutschein kein Newsletter Rabatt."""
         self.kassen_service.kunde_waehlen(self.kunde.kundennummer)
         with self.assertRaises(ValidierungsFehler):
             self.kassen_service.newsletter_rabatt_setzen(True)
