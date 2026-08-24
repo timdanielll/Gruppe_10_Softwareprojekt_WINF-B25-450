@@ -23,6 +23,7 @@ class BerichteSeite(BasisSeite):
     titel = "Berichte"
 
     def aufbauen(self) -> None:
+        """Baut die Seite: Zeitraumwahl, Kennzahlen, Ranglisten, Diagramme."""
         self.aktueller_bericht = None
         self.kennzahl_werte: dict[str, bausteine.Kachel] = {}
 
@@ -33,6 +34,7 @@ class BerichteSeite(BasisSeite):
     # ------------------------------------------------------------------
 
     def _zeitraum_bauen(self) -> None:
+        """Baut Datumsfelder und Schnellwahlknoepfe (/F311/)."""
         bereich = bausteine.Panel(self.inhalt, titel="Zeitraum")
         bereich.pack(fill="x", pady=(0, ABSTAND["md"]))
 
@@ -73,6 +75,7 @@ class BerichteSeite(BasisSeite):
     # ------------------------------------------------------------------
 
     def _kennzahlen_bauen(self) -> None:
+        """Baut Kennzahlkacheln, Ranglisten und Diagrammflaeche."""
         bereich = ctk.CTkFrame(self.inhalt, fg_color="transparent")
         bereich.pack(fill="x", pady=(0, ABSTAND["md"]))
 
@@ -182,11 +185,13 @@ class BerichteSeite(BasisSeite):
         self._ranglisten_laden()
 
     def stil_aktualisieren(self) -> None:
+        """Faerbt Tabellen und Diagramme nach einem Moduswechsel neu."""
         self.anteil_tabelle.stil_anwenden()
         self.umsatz_tabelle.stil_anwenden()
         self.haeufig_tabelle.stil_anwenden()
 
     def _schnellwahl(self, auswahl: str) -> None:
+        """Setzt den Zeitraum auf heute, diese Woche oder diesen Monat."""
         try:
             von, bis = self.anwendung.bericht_service.zeitraum_schnellwahl(auswahl)
         except FanshopFehler as fehler:
@@ -195,6 +200,7 @@ class BerichteSeite(BasisSeite):
         self._bericht_anzeigen(von, bis)
 
     def _bericht_aus_datum(self) -> None:
+        """Liest die Datumsfelder aus und erzeugt den Bericht."""
         try:
             von, bis = self.anwendung.bericht_service.zeitraum_aus_datum(
                 self.von_feld.wert(), self.bis_feld.wert()
@@ -207,6 +213,7 @@ class BerichteSeite(BasisSeite):
         self._bericht_anzeigen(von, bis)
 
     def _bericht_anzeigen(self, von: int, bis: int) -> None:
+        """Schreibt Kennzahlen, Ranglisten und Diagramme neu."""
         bericht = self.anwendung.bericht_service.bericht_erstellen(von, bis)
         self.aktueller_bericht = bericht
 
@@ -262,6 +269,7 @@ class BerichteSeite(BasisSeite):
     # ------------------------------------------------------------------
 
     def _diagramm_umsatz(self) -> None:
+        """Zeichnet das Balkendiagramm der umsatzstaerksten Artikel (/F24/)."""
         daten = self.anwendung.artikel_service.umsatzstaerkste(8)
         self._balkendiagramm_zeigen(
             titel="Umsatzstärkste Artikel",
@@ -271,6 +279,7 @@ class BerichteSeite(BasisSeite):
         )
 
     def _diagramm_haeufigkeit(self) -> None:
+        """Zeichnet das Balkendiagramm der meistverkauften Artikel (/F25/)."""
         daten = self.anwendung.artikel_service.haeufigste(8)
         self._balkendiagramm_zeigen(
             titel="Am häufigsten gekaufte Artikel",
@@ -280,6 +289,7 @@ class BerichteSeite(BasisSeite):
         )
 
     def _diagramm_kategorien(self) -> None:
+        """Zeichnet den Umsatzanteil je Kategorie (/F313/)."""
         if self.aktueller_bericht is None:
             return
         daten = self.aktueller_bericht.umsatz_je_kategorie

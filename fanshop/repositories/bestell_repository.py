@@ -88,16 +88,17 @@ class BestellRepository(BasisRepository):
             for position in positionen:
                 gezahlter_einzelpreis = runde_geld(position.einzelpreis * faktor)
 
-                # 2. Bestellposition
+                # 2. Bestellposition - mit der beim Kauf gewaehlten Groesse
                 verbindung.execute(
                     """INSERT INTO bestellposition
-                           (bestellnummer, artikel_id, menge, historischer_preis)
-                       VALUES (?, ?, ?, ?)""",
+                           (bestellnummer, artikel_id, menge, historischer_preis, groesse)
+                       VALUES (?, ?, ?, ?, ?)""",
                     (
                         bestellnummer,
                         position.artikel.artikel_id,
                         position.menge,
                         gezahlter_einzelpreis,
+                        position.groesse or None,
                     ),
                 )
 
@@ -210,25 +211,37 @@ class BestellRepository(BasisRepository):
 
     # -- /F51/ Retouren ----------------------------------------------------
 
-    def bereits_retourniert(self, bestellnummer: int, artikel_id: int) -> int:
-        """Wie viele Stueck dieses Artikels wurden aus dieser Bestellung schon
-        zurueckgegeben? Verhindert doppelte Erstattungen."""
+    def bereits_retourniert(self, position_id: int) -> int:
+        """Wie viele Stueck dieser Bestellzeile wurden schon zurueckgegeben?
+
+        Gezaehlt wird je **Position**, nicht je Artikel: Ein Hoodie in M und
+        einer in L stehen als zwei Zeilen in derselben Bestellung und duerfen
+        sich nicht gegenseitig aufbrauchen.
+        """
         zeile = self.datenbank.abfragen_eine(
             """SELECT COALESCE(SUM(menge), 0) AS menge
                FROM retoure
-               WHERE bestellnummer = ? AND artikel_id = ?""",
-            (bestellnummer, artikel_id),
+               WHERE position_id = ?""",
+            (position_id,),
         )
         return zeile["menge"] if zeile else 0
 
     def retoure_verbuchen(
-        self, bestellnummer: int, artikel_id: int, menge: int, historischer_preis: float
+        self,
+        bestellnummer: int,
+        position_id: int,
+        artikel_id: int,
+        menge: int,
+        historischer_preis: float,
     ) -> Retoure:
         """Bucht eine Rueckgabe (/F51/).
 
         In einer Transaktion: Retourenbeleg schreiben **und** die Ware zurueck
         ins Lager buchen. Erstattet wird zum historischen Preis, also zu dem
         Betrag, den der Kunde damals wirklich gezahlt hat.
+
+        Der Beleg haelt die ``position_id`` fest - nur sie sagt eindeutig,
+        welche Groesse zurueckkam.
         """
         erstattungsbetrag = runde_geld(menge * historischer_preis)
         datum = jetzt_iso()
@@ -236,9 +249,10 @@ class BestellRepository(BasisRepository):
         with self.datenbank.transaktion() as verbindung:
             cursor = verbindung.execute(
                 """INSERT INTO retoure
-                       (bestellnummer, artikel_id, menge, retouren_datum, erstattungsbetrag)
-                   VALUES (?, ?, ?, ?, ?)""",
-                (bestellnummer, artikel_id, menge, datum, erstattungsbetrag),
+                       (bestellnummer, position_id, artikel_id, menge,
+                        retouren_datum, erstattungsbetrag)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (bestellnummer, position_id, artikel_id, menge, datum, erstattungsbetrag),
             )
             retouren_id = cursor.lastrowid
 
@@ -250,6 +264,7 @@ class BestellRepository(BasisRepository):
         return Retoure(
             retouren_id=retouren_id,
             bestellnummer=bestellnummer,
+            position_id=position_id,
             artikel_id=artikel_id,
             menge=menge,
             erstattungsbetrag=erstattungsbetrag,
@@ -257,11 +272,12 @@ class BestellRepository(BasisRepository):
         )
 
     def retouren_zu(self, bestellnummer: int) -> list[Retoure]:
-        """Alle bisherigen Retouren einer Bestellung."""
+        """Alle bisherigen Retouren einer Bestellung - samt Groesse fuer die Anzeige."""
         zeilen = self.datenbank.abfragen(
-            """SELECT r.*, a.titel AS artikel_titel
+            """SELECT r.*, a.titel AS artikel_titel, p.groesse AS groesse
                FROM retoure r
                JOIN artikel a ON a.artikel_id = r.artikel_id
+               LEFT JOIN bestellposition p ON p.position_id = r.position_id
                WHERE r.bestellnummer = ?
                ORDER BY r.retouren_id""",
             (bestellnummer,),

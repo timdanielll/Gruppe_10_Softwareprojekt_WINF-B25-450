@@ -22,6 +22,7 @@ class BasisRepository:
     schluessel: str = ""
 
     def __init__(self, datenbank: Datenbank) -> None:
+        """Merkt sich die Datenbank, mit der dieses Repository arbeitet."""
         self.datenbank = datenbank
 
     def anzahl(self) -> int:
@@ -46,4 +47,5 @@ class BasisRepository:
     # Abkuerzung, die beide Regeln umgeht.
 
     def __repr__(self) -> str:
+        """Kurzform fuer die Fehlersuche."""
         return f"<{type(self).__name__} tabelle={self.tabelle}>"

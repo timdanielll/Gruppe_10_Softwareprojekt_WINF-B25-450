@@ -14,6 +14,7 @@ class FanshopTest(unittest.TestCase):
     """Basisklasse: frische Datenbank je Testfall, plus kleine Hilfsmethoden."""
 
     def setUp(self) -> None:
+        """Baut vor jedem Testfall eine frische Anwendung im Arbeitsspeicher."""
         # ":memory:" = Datenbank nur im Arbeitsspeicher, verschwindet danach.
         # testdaten=False, damit jeder Test genau die Daten hat, die er anlegt.
         self.anwendung = Anwendung(datenbank_pfad=":memory:", testdaten=False)
@@ -25,6 +26,7 @@ class FanshopTest(unittest.TestCase):
         self.bericht_service = self.anwendung.bericht_service
 
     def tearDown(self) -> None:
+        """Schliesst die Testdatenbank nach jedem Testfall."""
         self.anwendung.schliessen()
 
     # -- Hilfen zum Anlegen von Testdaten ----------------------------------
@@ -36,18 +38,19 @@ class FanshopTest(unittest.TestCase):
         preis: float = 10.00,
         lagerbestand: int = 10,
         rabattsatz: float = 0.0,
-        groesse: str = "",
     ):
+        """Legt einen Testartikel an. Kleidung braucht hier keine Größe mehr -
+        die wird erst beim Bestellen gewählt."""
         return self.artikel_service.anlegen(
             titel=titel,
             kategorie=kategorie,
             preis=preis,
             lagerbestand=lagerbestand,
             rabattsatz=rabattsatz,
-            groesse=groesse,
         )
 
     def kunde_anlegen(self, name: str = "Anna Becker", newsletter: bool = False):
+        """Legt einen Testkunden an."""
         return self.kunden_service.anlegen(
             name=name,
             strasse="Waldhausweg 14",
@@ -65,6 +68,7 @@ class FanshopTest(unittest.TestCase):
         mindestbestellwert: float = 0.0,
         aktiv: bool = True,
     ):
+        """Legt eine Sonderaktion an und speichert sie."""
         from fanshop.modelle.sonderaktion import Sonderaktion
 
         aktion = Sonderaktion(

@@ -37,6 +37,7 @@ class Kaufbeleg:
         album_stand: tuple[int, int] | None = None,
         starterset: bool = False,
     ) -> None:
+        """Sammelt alles, was die GUI nach dem Kauf anzeigt."""
         self.bestellnummer = bestellnummer
         self.uebersicht = uebersicht
         self.sticker = sticker
@@ -54,6 +55,7 @@ class Kaufbeleg:
         return starterset_modell.INHALT if self.starterset else ()
 
     def __str__(self) -> str:
+        """Bestellnummer und Endbetrag."""
         return f"Bestellung {self.bestellnummer} über {self.uebersicht.gesamtbetrag:.2f} EUR"
 
 
@@ -67,6 +69,7 @@ class KassenService:
         bestell_repository: BestellRepository,
         sonderaktion_repository: SonderaktionRepository,
     ) -> None:
+        """Merkt sich die Repositories und startet mit leerem Korb."""
         self.artikel_repository = artikel_repository
         self.kunden_repository = kunden_repository
         self.bestell_repository = bestell_repository
@@ -117,12 +120,18 @@ class KassenService:
 
     # -- /F11/ bis /F13/ Warenkorb -----------------------------------------
 
-    def artikel_hinzufuegen(self, artikel_id: int, menge: int = 1) -> None:
+    def artikel_hinzufuegen(
+        self, artikel_id: int, menge: int = 1, groesse: str = ""
+    ) -> None:
         """Legt einen Artikel in den Warenkorb (/F11/).
 
         Der Artikel wird absichtlich frisch aus der Datenbank geladen: Der
         Lagerbestand kann sich seit dem Aufbau der Artikelliste geaendert
         haben (z. B. durch eine Retoure).
+
+        :param groesse: bei Damen- und Herrentextilien Pflicht, sonst leer
+                        lassen. Welche Groessen es gibt, sagt
+                        ``artikel.groessen``.
         """
         artikel = self.artikel_repository.laden(artikel_id)
         if artikel is None:
@@ -130,18 +139,24 @@ class KassenService:
         if not artikel.aktiv:
             raise ValidierungsFehler(f"„{artikel.titel}“ wird nicht mehr verkauft.")
 
-        self.warenkorb.hinzufuegen(artikel, menge)
+        self.warenkorb.hinzufuegen(artikel, menge, groesse)
 
-    def artikel_entfernen(self, artikel_id: int) -> None:
-        """Entfernt eine Position vollstaendig (/F12/)."""
-        self.warenkorb.entfernen(artikel_id)
+    def position_entfernen(self, schluessel: str) -> None:
+        """Entfernt eine Warenkorbzeile vollstaendig (/F12/)."""
+        self.warenkorb.entfernen(schluessel)
 
-    def menge_setzen(self, artikel_id: int, menge: int) -> None:
-        """Setzt die Menge einer Position neu (/F12/)."""
-        self.warenkorb.menge_setzen(artikel_id, menge)
+    def menge_setzen(self, schluessel: str, menge: int) -> None:
+        """Setzt die Menge einer Warenkorbzeile neu (/F12/)."""
+        self.warenkorb.menge_setzen(schluessel, menge)
 
     def warenkorb_leeren(self) -> None:
+        """Wirft alles aus dem Warenkorb."""
         self.warenkorb.leeren()
+
+    def groessen_fuer(self, artikel_id: int) -> tuple[str, ...]:
+        """Welche Groessen sind fuer diesen Artikel waehlbar? (leer = keine)"""
+        artikel = self.artikel_repository.laden(artikel_id)
+        return artikel.groessen if artikel else ()
 
     def aktive_sonderaktion(self) -> Sonderaktion | None:
         """Die gerade laufende Rabattaktion - oder None."""

@@ -44,6 +44,7 @@ class FanshopApp(ctk.CTk):
     """Das Hauptfenster: Rollenauswahl, danach Navigation und Seiten."""
 
     def __init__(self, anwendung) -> None:
+        """Oeffnet das Fenster und zeigt zuerst die Zugangsauswahl."""
         super().__init__()
         self.anwendung = anwendung
 
@@ -134,6 +135,7 @@ class FanshopApp(ctk.CTk):
     # -- Navigationsleiste -------------------------------------------------
 
     def _navigation_bauen(self) -> None:
+        """Baut die linke Navigationsleiste samt Logo und Modusschalter."""
         self.navigation = ctk.CTkFrame(
             self,
             width=design.NAVIGATIONSBREITE,
@@ -290,6 +292,7 @@ class FanshopApp(ctk.CTk):
     # -- /F54/ Hell- und Dunkelmodus ---------------------------------------
 
     def _modus_gewaehlt(self, auswahl: str) -> None:
+        """Schaltet zwischen Hell- und Dunkelmodus um (/F54/)."""
         ctk.set_appearance_mode("dark" if auswahl == MOND else "light")
 
         # Logo und Trennlinie hängen am Modus, die Tabellen färben sich als
@@ -303,5 +306,6 @@ class FanshopApp(ctk.CTk):
     # -- Beenden -----------------------------------------------------------
 
     def _beenden(self) -> None:
+        """Schliesst die Datenbank und beendet das Programm."""
         self.anwendung.schliessen()
         self.destroy()

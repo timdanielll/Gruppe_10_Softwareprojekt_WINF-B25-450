@@ -16,7 +16,6 @@ from fanshop.hilfsmittel import euro, ganzzahl_aus_text, prozent, zahl_aus_text
 from fanshop.modelle import starterset as starterset_modell
 
 ALLE_KATEGORIEN = "Alle Kategorien"
-OHNE_GROESSE = "–"
 
 
 class ArtikelSeite(BasisSeite):
@@ -25,6 +24,7 @@ class ArtikelSeite(BasisSeite):
     titel = "Sortiment"
 
     def aufbauen(self) -> None:
+        """Baut die Seite: Artikelliste, Pflegemaske und Sonderaktionen."""
         self.gewaehlte_artikel_id: int | None = None
 
         self.inhalt.grid_columnconfigure(0, weight=3, uniform="artikel")
@@ -39,6 +39,7 @@ class ArtikelSeite(BasisSeite):
     # ------------------------------------------------------------------
 
     def _liste_bauen(self) -> None:
+        """Baut Suchfilter und Artikeltabelle (/F23/)."""
         links = bausteine.Panel(self.inhalt, titel="Sortiment")
         links.grid(row=0, column=0, sticky="nsew", padx=(0, ABSTAND["md"]))
 
@@ -89,6 +90,7 @@ class ArtikelSeite(BasisSeite):
     # ------------------------------------------------------------------
 
     def _maske_bauen(self) -> None:
+        """Baut die Pflegemaske samt Foto- und Groessenanzeige."""
         # rowspan=2: Die Maske laeuft ueber die volle Hoehe, damit unter ihr
         # nichts abgeschnitten wird. Die Sonderaktionen sitzen nur unter der Liste.
         rechts = bausteine.Panel(self.inhalt, titel="Artikel bearbeiten")
@@ -144,10 +146,28 @@ class ArtikelSeite(BasisSeite):
         )
         self.kategorie_feld.pack(side="left")
 
-        self.groesse_feld = bausteine.Auswahlfeld(
-            zeile1, "Größe", [OHNE_GROESSE, *konfiguration.GROESSEN], breite=110
+        # Die Größe ist keine Eingabe mehr: Ein Kleidungsstück steht einmal im
+        # Sortiment und gibt es in allen Größen seiner Kategorie. Hier steht
+        # deshalb nur, welche Spanne für die gewählte Kategorie gilt.
+        groessenblock = ctk.CTkFrame(zeile1, fg_color="transparent")
+        groessenblock.pack(side="left", padx=(ABSTAND["sm"], 0))
+        ctk.CTkLabel(
+            groessenblock,
+            text="GRÖSSEN",
+            font=schrift("label"),
+            text_color=farbe("text_leise"),
+            anchor="w",
+        ).pack(fill="x", pady=(0, 3))
+        self.groessen_anzeige = ctk.CTkLabel(
+            groessenblock,
+            text="—",
+            font=schrift("text"),
+            text_color=farbe("text"),
+            anchor="w",
+            wraplength=200,
+            justify="left",
         )
-        self.groesse_feld.pack(side="left", padx=(ABSTAND["sm"], 0))
+        self.groessen_anzeige.pack(fill="x")
 
         zeile2 = ctk.CTkFrame(formular, fg_color="transparent")
         zeile2.pack(fill="x", pady=(0, ABSTAND["sm"]))
@@ -178,6 +198,7 @@ class ArtikelSeite(BasisSeite):
     # ------------------------------------------------------------------
 
     def _aktionen_bauen(self) -> None:
+        """Baut die Sonderaktionstabelle und den Hinweis aufs Starterset."""
         bereich = bausteine.Panel(self.inhalt, titel="Sonderaktionen")
         bereich.grid(
             row=1, column=0, sticky="nsew", padx=(0, ABSTAND["md"]), pady=(ABSTAND["md"], 0)
@@ -223,6 +244,7 @@ class ArtikelSeite(BasisSeite):
         ).pack(fill="x", pady=(ABSTAND["sm"], 0))
 
     def _aktionen_laden(self) -> None:
+        """Fuellt die Sonderaktionstabelle neu."""
         aktionen = self.anwendung.sonderaktion_service.alle()
         zeilen = []
         for aktion in aktionen:
@@ -244,6 +266,7 @@ class ArtikelSeite(BasisSeite):
         self.aktions_tabelle.fuellen(zeilen)
 
     def _aktion_starten(self) -> None:
+        """Schaltet die markierte Sonderaktion scharf."""
         aktions_id = self.aktions_tabelle.gewaehlter_schluessel()
         if aktions_id is None:
             self.melden("Bitte eine Sonderaktion auswählen.", art="fehler")
@@ -257,6 +280,7 @@ class ArtikelSeite(BasisSeite):
         self.melden(f"Sonderaktion läuft: {aktion.titel}")
 
     def _aktionen_beenden(self) -> None:
+        """Beendet jede laufende Sonderaktion."""
         self.anwendung.sonderaktion_service.beenden()
         self._aktionen_laden()
         self.melden("Alle Sonderaktionen beendet.", art="neutral")
@@ -266,15 +290,18 @@ class ArtikelSeite(BasisSeite):
     # ------------------------------------------------------------------
 
     def beim_anzeigen(self) -> None:
+        """Laedt Artikel, Bilder und Aktionen beim Oeffnen der Seite."""
         self._bildliste_laden()
         self._liste_laden()
         self._aktionen_laden()
 
     def stil_aktualisieren(self) -> None:
+        """Faerbt die Tabellen nach einem Moduswechsel neu."""
         self.tabelle.stil_anwenden()
         self.aktions_tabelle.stil_anwenden()
 
     def _liste_laden(self) -> None:
+        """Fuehrt die Suche mit den aktuellen Filtern aus (/F23/)."""
         kategorie = self.kategorie_auswahl.wert()
         try:
             treffer = self.anwendung.artikel_service.suchen(
@@ -306,6 +333,7 @@ class ArtikelSeite(BasisSeite):
             self.tabelle.auswahl_setzen(self.gewaehlte_artikel_id)
 
     def _artikel_gewaehlt(self) -> None:
+        """Uebernimmt den markierten Artikel in die Pflegemaske."""
         artikel_id = self.tabelle.gewaehlter_schluessel()
         if artikel_id is None:
             return
@@ -318,7 +346,6 @@ class ArtikelSeite(BasisSeite):
         self.gewaehlte_artikel_id = artikel_id
         self.titel_feld.setzen(artikel.titel)
         self.kategorie_feld.setzen(artikel.kategorie)
-        self.groesse_feld.setzen(getattr(artikel, "groesse", "") or OHNE_GROESSE)
         self.preis_feld.setzen(f"{artikel.preis:.2f}".replace(".", ","))
         self.rabatt_feld.setzen(f"{artikel.rabattsatz:.2f}".replace(".", ","))
         self.bestand_feld.setzen(artikel.lagerbestand)
@@ -348,6 +375,7 @@ class ArtikelSeite(BasisSeite):
         return None
 
     def _foto_bezeichnung(self, datei: str | None) -> str:
+        """Der Anzeigename einer Bilddatei fuer die Auswahlliste."""
         for beschriftung, vorhandene in self.bildliste:
             if vorhandene == datei:
                 return beschriftung
@@ -371,21 +399,25 @@ class ArtikelSeite(BasisSeite):
         self.bildkarte.bildflaeche.configure(image=bild, text="")
 
     def _kategorie_gewechselt(self, kategorie: str) -> None:
-        """Die Größe gibt es nur bei Damen und Herren."""
-        if kategorie in konfiguration.KLEIDUNGS_KATEGORIEN:
-            self.groesse_feld.auswahl.configure(state="normal")
-        else:
-            self.groesse_feld.setzen(OHNE_GROESSE)
-            self.groesse_feld.auswahl.configure(state="disabled")
+        """Zeigt die Größenspanne der gewählten Kategorie an.
+
+        Damen führen S–XL, Herren S–5XL; alles andere hat keine Größe. Die
+        Werte stehen in ``konfiguration.GROESSEN_JE_KATEGORIE`` und lassen
+        sich hier bewusst nicht ändern — sie gelten für die ganze Kategorie.
+        """
+        groessen = konfiguration.groessen_fuer(kategorie)
+        self.groessen_anzeige.configure(
+            text=", ".join(groessen) if groessen else "keine Größen"
+        )
 
     def _maske_leeren(self) -> None:
+        """Leert die Maske fuer einen neuen Artikel."""
         self.gewaehlte_artikel_id = None
         self.titel_feld.leeren()
         self.preis_feld.leeren()
         self.rabatt_feld.leeren()
         self.bestand_feld.leeren()
         self.beschreibung_feld.delete("1.0", "end")
-        self.groesse_feld.setzen(OHNE_GROESSE)
         self.foto_auswahl.setzen(OHNE_FOTO)
         self.bildkarte.leeren("Neuer Artikel — noch kein Foto.")
         self.status_knopf.configure(text="Deaktivieren")
@@ -396,7 +428,6 @@ class ArtikelSeite(BasisSeite):
 
     def _werte_aus_maske(self) -> dict:
         """Liest die Maske aus und wandelt die Texte in Zahlen um."""
-        groesse = self.groesse_feld.wert()
         return {
             "titel": self.titel_feld.wert(),
             "kategorie": self.kategorie_feld.wert(),
@@ -404,7 +435,6 @@ class ArtikelSeite(BasisSeite):
             "rabattsatz": zahl_aus_text(self.rabatt_feld.wert() or "0", "Rabattsatz"),
             "lagerbestand": ganzzahl_aus_text(self.bestand_feld.wert() or "0", "Lagerbestand"),
             "beschreibung": self.beschreibung_feld.get("1.0", "end").strip(),
-            "groesse": "" if groesse == OHNE_GROESSE else groesse,
             "bildpfad": self._gewaehltes_bild(),
         }
 
@@ -440,8 +470,6 @@ class ArtikelSeite(BasisSeite):
             artikel.lagerbestand = werte["lagerbestand"]
             artikel.beschreibung = werte["beschreibung"]
             artikel.bildpfad = werte["bildpfad"]
-            if hasattr(artikel, "groesse"):
-                artikel.groesse = werte["groesse"]
             self.anwendung.artikel_service.aktualisieren(artikel)
         except FanshopFehler as fehler:
             self.fehler_anzeigen(fehler)

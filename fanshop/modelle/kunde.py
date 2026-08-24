@@ -20,6 +20,7 @@ class Kunde:
         starterset_erhalten: bool = False,
         kundennummer: int | None = None,
     ) -> None:
+        """Legt einen Kunden mit allen Stammdaten an."""
         self.kundennummer = kundennummer        # None = noch nicht gespeichert
         self.name = name
         self.strasse = strasse
@@ -67,6 +68,7 @@ class Kunde:
 
     @classmethod
     def aus_zeile(cls, zeile: sqlite3.Row) -> "Kunde":
+        """Baut einen Kunden aus einer Datenbankzeile."""
         return cls(
             kundennummer=zeile["kundennummer"],
             name=zeile["name"],
@@ -80,6 +82,7 @@ class Kunde:
         )
 
     def als_datenbankwerte(self) -> tuple:
+        """Alle Felder in Speicherreihenfolge."""
         return (
             self.name,
             self.strasse,
@@ -94,11 +97,13 @@ class Kunde:
     # -- Darstellung -------------------------------------------------------
 
     def __str__(self) -> str:
+        """Kundennummer und Name - so steht der Kunde in Listen."""
         if self.kundennummer is None:
             return self.name
         return f"{self.kundennummer} - {self.name}"
 
     def __repr__(self) -> str:
+        """Kurzform fuer die Fehlersuche."""
         return f"<Kunde {self.kundennummer} {self.name!r}>"
 
 

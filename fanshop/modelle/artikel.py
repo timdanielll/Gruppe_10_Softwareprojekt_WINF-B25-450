@@ -3,10 +3,16 @@
 Hier steht das einzige Beispiel fuer echte Vererbung im Datenmodell (/NF20/):
 
     Artikel                 -> alle Produkte des Shops
-      Kleidungsartikel      -> zusaetzlich das Merkmal "Groesse"
+      Kleidungsartikel      -> zusaetzlich das Merkmal "Groessen"
 
 Das Lastenheft verlangt genau das: "Artikel haben in Abhaengigkeit ihrer
 Kategorie weitere Merkmale (Herren / Damen, Groesse etc.)".
+
+Wichtig zur Groesse: Ein Kleidungsstueck steht **einmal** im Sortiment und ist
+in allen Groessen seiner Kategorie zu haben (Damen S-XL, Herren S-5XL). Welche
+Groesse es sein soll, entscheidet sich erst beim Bestellen - die Auswahl steht
+deshalb im Warenkorb (``modelle/warenkorb.py``) und auf der Bestellposition,
+nicht am Artikel.
 """
 
 import sqlite3
@@ -31,6 +37,7 @@ class Artikel:
         bildpfad: str | None = None,
         artikel_id: int | None = None,
     ) -> None:
+        """Legt einen Artikel mit allen Stammdaten an."""
         self.artikel_id = artikel_id            # None = noch nicht gespeichert
         self.titel = titel
         self.kategorie = kategorie
@@ -51,11 +58,27 @@ class Artikel:
 
     @property
     def hat_rabatt(self) -> bool:
+        """True, wenn auf diesen Artikel ein eigener Rabatt liegt."""
         return self.rabattsatz > 0
 
     @property
     def ist_verfuegbar(self) -> bool:
+        """True, wenn der Artikel verkauft wird und noch auf Lager ist."""
         return self.aktiv and self.lagerbestand > 0
+
+    @property
+    def groessen(self) -> tuple[str, ...]:
+        """Waehlbare Groessen - bei einem normalen Artikel keine.
+
+        ``Kleidungsartikel`` ueberschreibt das. Die GUI fragt immer nur
+        ``artikel.groessen`` und muss die Artikelart nicht kennen.
+        """
+        return ()
+
+    @property
+    def braucht_groesse(self) -> bool:
+        """True, wenn beim Bestellen eine Groesse gewaehlt werden muss."""
+        return bool(self.groessen)
 
     def merkmale(self) -> str:
         """Zusaetzliche Eigenschaften als Text.
@@ -63,6 +86,14 @@ class Artikel:
         Die Basisklasse hat keine - Unterklassen ueberschreiben diese Methode
         (Polymorphie). Die GUI ruft immer nur ``artikel.merkmale()`` auf und
         muss nicht wissen, um welche Artikelart es sich handelt.
+        """
+        return ""
+
+    def groesse_pruefen(self, groesse: str) -> str:
+        """Prueft eine gewaehlte Groesse und liefert den zu speichernden Wert.
+
+        Ein Artikel ohne Groessen nimmt keine an; ``Kleidungsartikel``
+        ueberschreibt diese Methode und verlangt eine gueltige.
         """
         return ""
 
@@ -89,16 +120,8 @@ class Artikel:
             bildpfad=zeile["bildpfad"],
         )
         if zeile["kategorie"] in konfiguration.KLEIDUNGS_KATEGORIEN:
-            return Kleidungsartikel(groesse=zeile["groesse"] or "", **gemeinsam)
+            return Kleidungsartikel(**gemeinsam)
         return Artikel(**gemeinsam)
-
-    def groesse_wert(self) -> str | None:
-        """Wert fuer die Spalte ``groesse``.
-
-        Ein normaler Artikel hat keine Groesse; ``Kleidungsartikel``
-        ueberschreibt diese Methode.
-        """
-        return None
 
     def als_datenbankwerte(self) -> tuple:
         """Alle Felder in genau der Reihenfolge, in der sie gespeichert werden."""
@@ -111,35 +134,61 @@ class Artikel:
             self.lagerbestand,
             self.erstellungsdatum,
             1 if self.aktiv else 0,
-            self.groesse_wert(),
             self.bildpfad,
         )
 
     # -- Darstellung -------------------------------------------------------
 
     def __str__(self) -> str:
+        """Titel und Kategorie - so steht der Artikel in Listen."""
         return f"{self.titel} ({self.kategorie})"
 
     def __repr__(self) -> str:
+        """Kurzform fuer die Fehlersuche."""
         return f"<{type(self).__name__} {self.artikel_id} {self.titel!r}>"
 
 
 class Kleidungsartikel(Artikel):
-    """Artikel der Kategorien Damen und Herren - hat zusaetzlich eine Groesse."""
+    """Artikel der Kategorien Damen und Herren - in mehreren Groessen zu haben.
 
-    def __init__(self, *args, groesse: str = "", **kwargs) -> None:
-        super().__init__(*args, **kwargs)       # alles Gemeinsame erledigt die Basisklasse
-        self.groesse = groesse
+    Welche Groessen das sind, haengt allein an der Kategorie und steht in
+    ``konfiguration.GROESSEN_JE_KATEGORIE``. Damit fuehren Damen und Herren
+    dasselbe Sortiment, nur eben in unterschiedlichen Spannen.
+    """
+
+    @property
+    def groessen(self) -> tuple[str, ...]:
+        """Ueberschreibt die Basisklasse: die Groessen dieser Kategorie."""
+        return konfiguration.groessen_fuer(self.kategorie)
 
     def merkmale(self) -> str:
-        """Ueberschreibt die Basisklasse: gibt die Groesse aus."""
-        return f"Größe: {self.groesse}" if self.groesse else ""
+        """Ueberschreibt die Basisklasse: gibt die Groessenspanne aus."""
+        if not self.groessen:
+            return ""
+        return f"Größen: {', '.join(self.groessen)}"
 
-    def groesse_wert(self) -> str | None:
-        """Ueberschreibt die Basisklasse: speichert die Groesse mit ab."""
-        return self.groesse or None
+    def groesse_pruefen(self, groesse: str) -> str:
+        """Ueberschreibt die Basisklasse: nimmt nur Groessen dieser Kategorie an.
+
+        :raises ValidierungsFehler: wenn nichts oder etwas Unbekanntes gewaehlt wurde
+        """
+        from fanshop.fehler import ValidierungsFehler
+
+        gewaehlt = (groesse or "").strip().upper()
+        if not gewaehlt:
+            raise ValidierungsFehler(
+                f"Für „{self.titel}“ bitte eine Größe wählen "
+                f"({', '.join(self.groessen)})."
+            )
+        if gewaehlt not in self.groessen:
+            raise ValidierungsFehler(
+                f"Größe „{groesse}“ gibt es für „{self.titel}“ nicht. "
+                f"Möglich sind: {', '.join(self.groessen)}."
+            )
+        return gewaehlt
 
     def __str__(self) -> str:
-        if self.groesse:
-            return f"{self.titel} ({self.kategorie}, Gr. {self.groesse})"
+        """Titel, Kategorie und Groessenspanne."""
+        if self.groessen:
+            return f"{self.titel} ({self.kategorie}, {self.groessen[0]}–{self.groessen[-1]})"
         return super().__str__()

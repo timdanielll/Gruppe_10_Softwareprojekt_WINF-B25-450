@@ -36,11 +36,30 @@ KATEGORIEN = (
     "Tickets",
 )
 
+# Welche Groessen es je Kleidungskategorie gibt.
+#
+# Die Groesse gehoert nicht mehr zum Artikel, sondern wird beim Bestellen
+# gewaehlt: Jedes Kleidungsstueck steht genau einmal im Sortiment und ist in
+# allen Groessen seiner Kategorie zu haben. Damen und Herren fuehren dieselben
+# Textilien, nur die Groessenspanne unterscheidet sich.
+GROESSEN_JE_KATEGORIE = {
+    "Damen": ("S", "M", "L", "XL"),
+    "Herren": ("S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL"),
+}
+
 # Fuer diese Kategorien gibt es das zusaetzliche Merkmal "Groesse".
 # Sie werden im Programm durch die Klasse Kleidungsartikel abgebildet.
-KLEIDUNGS_KATEGORIEN = ("Damen", "Herren")
+KLEIDUNGS_KATEGORIEN = tuple(GROESSEN_JE_KATEGORIE)
 
-GROESSEN = ("XS", "S", "M", "L", "XL", "XXL")
+# Alle ueberhaupt vorkommenden Groessen - in der Reihenfolge klein nach gross.
+# Wird nur zum Pruefen gebraucht; die Auswahl in der Kasse benutzt immer die
+# Liste der jeweiligen Kategorie.
+GROESSEN = ("S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL")
+
+
+def groessen_fuer(kategorie: str) -> tuple[str, ...]:
+    """Liefert die waehlbaren Groessen einer Kategorie (leer bei Nicht-Kleidung)."""
+    return GROESSEN_JE_KATEGORIE.get(kategorie, ())
 
 # Willkommensrabatt fuer die Newsletter-Anmeldung (/F52/): 10 Prozent.
 NEWSLETTER_RABATTSATZ = 0.10

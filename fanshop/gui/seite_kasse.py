@@ -22,6 +22,9 @@ from fanshop.modelle import sticker as sticker_modell
 
 ALLE_KATEGORIEN = "Alle Kategorien"
 
+#: Beschriftung im Groessenfeld, wenn ein Artikel gar keine Groesse hat.
+OHNE_GROESSE = "–"
+
 SCHRITT_KUNDE, SCHRITT_ARTIKEL, SCHRITT_KORB, SCHRITT_ABSCHLUSS = 0, 1, 2, 3
 
 
@@ -31,6 +34,7 @@ class KassenSeite(BasisSeite):
     titel = "Kasse"
 
     def aufbauen(self) -> None:
+        """Baut die Kasse als Strecke aus vier Schritten (/NF12/)."""
         self.schritt = SCHRITT_KUNDE
         self._suchauftrag = None
 
@@ -69,6 +73,7 @@ class KassenSeite(BasisSeite):
     # ==================================================================
 
     def _schritt_kunde_bauen(self) -> ctk.CTkFrame:
+        """Baut Schritt 1: Kundenliste und Kundenkarte."""
         rahmen = ctk.CTkFrame(self.buehne, fg_color="transparent")
         rahmen.grid_columnconfigure(0, weight=3, uniform="k1")
         rahmen.grid_columnconfigure(1, weight=2, uniform="k1")
@@ -133,11 +138,13 @@ class KassenSeite(BasisSeite):
         return rahmen
 
     def _kundensuche_geplant(self, ereignis=None) -> None:
+        """Startet die Kundensuche kurz nach dem letzten Tastendruck."""
         if self._suchauftrag is not None:
             self.after_cancel(self._suchauftrag)
         self._suchauftrag = self.after(250, self._kunden_laden)
 
     def _kunden_laden(self) -> None:
+        """Fuellt die Kundenliste mit den Suchtreffern (/F44/)."""
         kunden = self.anwendung.kunden_service.suchen(self.kundensuche.wert())
         self.kunden_tabelle.fuellen(
             [
@@ -159,6 +166,7 @@ class KassenSeite(BasisSeite):
             self.kunden_tabelle.auswahl_setzen(aktiver.kundennummer)
 
     def _kunde_gewaehlt(self) -> None:
+        """Uebernimmt den markierten Kunden in den Kassiervorgang."""
         kundennummer = self.kunden_tabelle.gewaehlter_schluessel()
         if kundennummer is None:
             return
@@ -190,6 +198,7 @@ class KassenSeite(BasisSeite):
         self._korbstand_aktualisieren()
 
     def _laufkundschaft(self) -> None:
+        """Verkauf ohne Kundenkonto - keine Sticker, kein Gutschein."""
         self.anwendung.kassen_service.kunde_abwaehlen()
         self.kunden_tabelle.baum.selection_remove(*self.kunden_tabelle.baum.selection())
         self.kunde_name.configure(text="Laufkundschaft")
@@ -203,6 +212,7 @@ class KassenSeite(BasisSeite):
     # ==================================================================
 
     def _schritt_artikel_bauen(self) -> ctk.CTkFrame:
+        """Baut Schritt 2: Artikelsuche, Produktfoto, Menge und Groesse."""
         rahmen = ctk.CTkFrame(self.buehne, fg_color="transparent")
         rahmen.grid_columnconfigure(0, weight=3, uniform="k2")
         rahmen.grid_columnconfigure(1, weight=2, uniform="k2")
@@ -265,17 +275,25 @@ class KassenSeite(BasisSeite):
         mengenzeile = ctk.CTkFrame(rechts.inhalt, fg_color="transparent")
         mengenzeile.pack(fill="x", pady=(ABSTAND["md"], 0))
 
-        self.menge_feld = bausteine.Feld(mengenzeile, "Menge", "1", breite=90)
+        self.menge_feld = bausteine.Feld(mengenzeile, "Menge", "1", breite=80)
         self.menge_feld.setzen("1")
         self.menge_feld.pack(side="left", anchor="n")
 
-        bausteine.aktionsknopf(
-            mengenzeile, "In den Warenkorb", self._artikel_uebernehmen, breite=210
-        ).pack(side="left", padx=(ABSTAND["sm"], 0), pady=(20, 0))
+        # Groessenauswahl (/F11/): Bei Damen- und Herrentextilien muss der
+        # Bediener eine Groesse waehlen, sonst bleibt das Feld gesperrt.
+        self.groesse_auswahl = bausteine.Auswahlfeld(
+            mengenzeile, "Größe", [OHNE_GROESSE], breite=100
+        )
+        self.groesse_auswahl.pack(side="left", anchor="n", padx=(ABSTAND["sm"], 0))
 
-        bausteine.Hinweis(
+        bausteine.aktionsknopf(
+            rechts.inhalt, "In den Warenkorb", self._artikel_uebernehmen, breite=280
+        ).pack(fill="x", pady=(ABSTAND["sm"], 0))
+
+        self.groesse_hinweis = bausteine.Hinweis(
             rechts.inhalt, "Doppelklick auf eine Zeile geht schneller.", umbruch=280
-        ).pack(fill="x", pady=(ABSTAND["xs"], 0))
+        )
+        self.groesse_hinweis.pack(fill="x", pady=(ABSTAND["xs"], 0))
 
         return rahmen
 
@@ -329,6 +347,7 @@ class KassenSeite(BasisSeite):
             self.artikel_tabelle.erste_waehlen()
 
     def _filter_zuruecksetzen(self) -> None:
+        """Setzt alle Suchfilter auf Anfang."""
         self.suchfeld.leeren()
         self.preis_von.leeren()
         self.preis_bis.leeren()
@@ -337,6 +356,7 @@ class KassenSeite(BasisSeite):
         self.melden("Filter zurückgesetzt.", art="neutral")
 
     def _artikel_gewaehlt(self) -> None:
+        """Zeigt das Produktfoto und stellt die Größenauswahl passend ein."""
         artikel_id = self.artikel_tabelle.gewaehlter_schluessel()
         if artikel_id is None:
             return
@@ -345,23 +365,48 @@ class KassenSeite(BasisSeite):
         except FanshopFehler:
             return
         self.bildkarte.zeigen(artikel)
+        self._groessenauswahl_stellen(artikel)
+
+    def _groessenauswahl_stellen(self, artikel) -> None:
+        """Füllt das Größenfeld mit den Größen des Artikels - oder sperrt es.
+
+        Damen führen S–XL, Herren S–5XL. Alles außerhalb der beiden
+        Kleidungskategorien hat keine Größe, dann bleibt das Feld inaktiv.
+        """
+        if artikel.braucht_groesse:
+            self.groesse_auswahl.werte_setzen(list(artikel.groessen))
+            self.groesse_auswahl.auswahl.configure(state="normal")
+            self.groesse_hinweis.configure(
+                text=f"Größen für „{artikel.titel}“: {', '.join(artikel.groessen)}."
+            )
+        else:
+            self.groesse_auswahl.werte_setzen([OHNE_GROESSE])
+            self.groesse_auswahl.auswahl.configure(state="disabled")
+            self.groesse_hinweis.configure(
+                text="Doppelklick auf eine Zeile geht schneller."
+            )
 
     def _artikel_uebernehmen(self) -> None:
-        """Legt den markierten Artikel in den Warenkorb (/F11/)."""
+        """Legt den markierten Artikel in der gewählten Größe in den Warenkorb (/F11/)."""
         artikel_id = self.artikel_tabelle.gewaehlter_schluessel()
         if artikel_id is None:
             self.melden("Bitte zuerst einen Artikel auswählen.", art="fehler")
             return
+
+        gewaehlt = self.groesse_auswahl.wert()
+        groesse = "" if gewaehlt == OHNE_GROESSE else gewaehlt
+
         try:
             menge = ganzzahl_aus_text(self.menge_feld.wert() or "1", "Menge")
-            self.anwendung.kassen_service.artikel_hinzufuegen(artikel_id, menge)
+            self.anwendung.kassen_service.artikel_hinzufuegen(artikel_id, menge, groesse)
             artikel = self.anwendung.artikel_service.laden(artikel_id)
         except FanshopFehler as fehler:
             self.fehler_anzeigen(fehler)
             return
 
         self.menge_feld.setzen("1")
-        self.melden(f"{menge} × {artikel.titel} in den Warenkorb.")
+        zusatz = f" (Gr. {groesse})" if groesse else ""
+        self.melden(f"{menge} × {artikel.titel}{zusatz} in den Warenkorb.")
         self._korbstand_aktualisieren()
 
     # ==================================================================
@@ -369,6 +414,7 @@ class KassenSeite(BasisSeite):
     # ==================================================================
 
     def _schritt_korb_bauen(self) -> ctk.CTkFrame:
+        """Baut Schritt 3: Warenkorbtabelle und Rabattuebersicht."""
         rahmen = ctk.CTkFrame(self.buehne, fg_color="transparent")
         rahmen.grid_columnconfigure(0, weight=3, uniform="k3")
         rahmen.grid_columnconfigure(1, weight=2, uniform="k3")
@@ -380,10 +426,11 @@ class KassenSeite(BasisSeite):
         self.korb_tabelle = bausteine.Tabelle(
             links.inhalt,
             spalten=[
-                ("Artikel", 210, "w"),
-                ("Menge", 60, "e"),
-                ("Einzel", 85, "e"),
-                ("Summe", 90, "e"),
+                ("Artikel", 165, "w"),
+                ("Größe", 55, "w"),
+                ("Menge", 55, "e"),
+                ("Einzel", 80, "e"),
+                ("Summe", 85, "e"),
             ],
             leer_text="Noch nichts im Warenkorb.",
             hoehe=8,
@@ -428,24 +475,24 @@ class KassenSeite(BasisSeite):
         return rahmen
 
     def _position_entfernen(self) -> None:
-        """Entfernt die markierte Position vollständig (/F12/)."""
-        artikel_id = self.korb_tabelle.gewaehlter_schluessel()
-        if artikel_id is None:
+        """Entfernt die markierte Warenkorbzeile vollständig (/F12/)."""
+        schluessel = self.korb_tabelle.gewaehlter_schluessel_text()
+        if schluessel is None:
             self.melden("Bitte eine Zeile im Warenkorb auswählen.", art="fehler")
             return
-        self.anwendung.kassen_service.artikel_entfernen(artikel_id)
+        self.anwendung.kassen_service.position_entfernen(schluessel)
         self.melden("Position entfernt.")
         self._korb_anzeigen()
 
     def _menge_aendern(self) -> None:
-        """Setzt die Menge der markierten Position neu (/F12/)."""
-        artikel_id = self.korb_tabelle.gewaehlter_schluessel()
-        if artikel_id is None:
+        """Setzt die Menge der markierten Warenkorbzeile neu (/F12/)."""
+        schluessel = self.korb_tabelle.gewaehlter_schluessel_text()
+        if schluessel is None:
             self.melden("Bitte eine Zeile im Warenkorb auswählen.", art="fehler")
             return
         try:
             menge = ganzzahl_aus_text(self.korb_menge.wert() or "1", "Menge")
-            self.anwendung.kassen_service.menge_setzen(artikel_id, menge)
+            self.anwendung.kassen_service.menge_setzen(schluessel, menge)
         except FanshopFehler as fehler:
             self.fehler_anzeigen(fehler)
             return
@@ -453,6 +500,7 @@ class KassenSeite(BasisSeite):
         self._korb_anzeigen()
 
     def _korb_leeren(self) -> None:
+        """Leert den Warenkorb nach Rueckfrage."""
         if self.anwendung.kassen_service.warenkorb.ist_leer:
             return
         if self.frage_stellen(
@@ -465,6 +513,7 @@ class KassenSeite(BasisSeite):
             self._korb_anzeigen()
 
     def _newsletter_umgeschaltet(self) -> None:
+        """Schaltet den Newsletter-Gutschein fuer diesen Kauf ein oder aus."""
         try:
             self.anwendung.kassen_service.newsletter_rabatt_setzen(
                 bool(self.newsletter_haken.get())
@@ -481,9 +530,12 @@ class KassenSeite(BasisSeite):
         self.korb_tabelle.fuellen(
             [
                 (
-                    position.artikel.artikel_id,
+                    # Schlüssel ist Artikelnummer plus Größe: Derselbe Pullover
+                    # in M und in L sind zwei getrennte Zeilen.
+                    position.schluessel,
                     [
                         position.artikel.titel,
+                        position.groesse or "–",
                         position.menge,
                         euro(position.einzelpreis),
                         euro(position.zeilensumme),
@@ -564,6 +616,7 @@ class KassenSeite(BasisSeite):
     # ==================================================================
 
     def _schritt_abschluss_bauen(self) -> ctk.CTkFrame:
+        """Baut Schritt 4: Beleg pruefen und buchen."""
         rahmen = ctk.CTkFrame(self.buehne, fg_color="transparent")
         rahmen.grid_columnconfigure(0, weight=1, uniform="k4")
         rahmen.grid_columnconfigure(1, weight=1, uniform="k4")
@@ -603,6 +656,7 @@ class KassenSeite(BasisSeite):
         return rahmen
 
     def _abschluss_anzeigen(self) -> None:
+        """Schreibt Beleg, Summen und Praemienvorschau neu."""
         kasse = self.anwendung.kassen_service
         korb = kasse.warenkorb
 
@@ -611,7 +665,7 @@ class KassenSeite(BasisSeite):
         )
         self.abschluss_zeilen.configure(
             text="\n".join(
-                f"{p.menge} × {p.artikel.titel} — {euro(p.zeilensumme)}"
+                f"{p.menge} × {p.anzeigename} — {euro(p.zeilensumme)}"
                 for p in korb.positionen
             )
             or "Der Warenkorb ist leer."
@@ -653,6 +707,7 @@ class KassenSeite(BasisSeite):
         return zeile
 
     def _kauf_abschliessen(self) -> None:
+        """Bucht den Kauf und zeigt Sticker und Starterset (/F14/)."""
         kasse = self.anwendung.kassen_service
         try:
             beleg = kasse.kauf_abschliessen()
@@ -731,6 +786,7 @@ class KassenSeite(BasisSeite):
     # ==================================================================
 
     def _fussleiste_bauen(self) -> None:
+        """Baut die Knoepfe Zurueck und Weiter."""
         fuss = ctk.CTkFrame(self.inhalt, fg_color="transparent")
         fuss.pack(fill="x", pady=(ABSTAND["md"], 0))
 
@@ -741,6 +797,7 @@ class KassenSeite(BasisSeite):
         self.weiter_knopf.pack(side="right")
 
     def _zurueck(self) -> None:
+        """Geht einen Schritt zurueck."""
         if self.schritt > SCHRITT_KUNDE:
             self.schritt_zeigen(self.schritt - 1)
 
@@ -763,6 +820,7 @@ class KassenSeite(BasisSeite):
                 return          # ein Schritt hat blockiert und hat es gemeldet
 
     def _weiter(self) -> None:
+        """Geht einen Schritt weiter, wenn die Voraussetzungen stimmen."""
         if self.schritt >= SCHRITT_ABSCHLUSS:
             return
         # Ohne Ware kein Warenkorb und kein Abschluss.
@@ -816,9 +874,11 @@ class KassenSeite(BasisSeite):
     # ==================================================================
 
     def beim_anzeigen(self) -> None:
+        """Laedt Kunden und Artikel beim Oeffnen der Seite neu."""
         self.schritt_zeigen(self.schritt)
 
     def stil_aktualisieren(self) -> None:
+        """Faerbt die Tabellen nach einem Moduswechsel neu."""
         self.artikel_tabelle.stil_anwenden()
         self.korb_tabelle.stil_anwenden()
         self.kunden_tabelle.stil_anwenden()

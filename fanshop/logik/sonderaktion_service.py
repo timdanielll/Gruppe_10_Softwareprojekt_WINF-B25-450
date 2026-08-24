@@ -18,6 +18,7 @@ class SonderaktionService:
     """Listet, aktiviert und beendet die Spezialangebote."""
 
     def __init__(self, sonderaktion_repository: SonderaktionRepository) -> None:
+        """Merkt sich das Sonderaktion-Repository."""
         self.sonderaktion_repository = sonderaktion_repository
 
     def alle(self) -> list[Sonderaktion]:

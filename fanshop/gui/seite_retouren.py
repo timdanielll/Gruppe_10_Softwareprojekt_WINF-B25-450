@@ -19,8 +19,11 @@ class RetourenSeite(BasisSeite):
     titel = "Retouren"
 
     def aufbauen(self) -> None:
+        """Baut das Retourenterminal: Suche links, Buchung rechts."""
         self.aktuelle_bestellung = None
-        #: Artikel-ID -> wie viele Stueck noch zurueckgegeben werden koennen.
+        #: Positionsnummer -> wie viele Stueck noch zurueckgegeben werden
+        #: koennen. Die Positionsnummer und nicht die Artikelnummer, weil
+        #: derselbe Artikel in zwei Groessen in einer Bestellung stehen kann.
         self.offene_mengen: dict[int, int] = {}
 
         self.inhalt.grid_columnconfigure(0, weight=3, uniform="retouren")
@@ -33,6 +36,7 @@ class RetourenSeite(BasisSeite):
     # ------------------------------------------------------------------
 
     def _suche_bauen(self) -> None:
+        """Baut Belegsuche und Liste der letzten Bestellungen."""
         links = bausteine.Panel(self.inhalt, titel="1. Bestellung finden")
         links.grid(row=0, column=0, sticky="nsew", padx=(0, ABSTAND["md"]))
 
@@ -73,6 +77,7 @@ class RetourenSeite(BasisSeite):
     # ------------------------------------------------------------------
 
     def _buchung_bauen(self) -> None:
+        """Baut Positionstabelle, Mengenfeld und Retourenhistorie."""
         rechts = ctk.CTkFrame(self.inhalt, fg_color="transparent")
         rechts.grid(row=0, column=1, sticky="nsew")
 
@@ -87,10 +92,11 @@ class RetourenSeite(BasisSeite):
         self.positions_tabelle = bausteine.Tabelle(
             positionsbereich.inhalt,
             spalten=[
-                ("Artikel", 135, "w"),
-                ("Gekauft", 60, "e"),
-                ("Offen", 50, "e"),
-                ("Einzel", 68, "e"),
+                ("Artikel", 115, "w"),
+                ("Größe", 45, "w"),
+                ("Gekauft", 55, "e"),
+                ("Offen", 45, "e"),
+                ("Einzel", 65, "e"),
             ],
             leer_text="Bitte links eine Bestellung wählen.",
             hoehe=6,
@@ -115,10 +121,11 @@ class RetourenSeite(BasisSeite):
         self.retouren_tabelle = bausteine.Tabelle(
             historie.inhalt,
             spalten=[
-                ("Artikel", 115, "w"),
+                ("Artikel", 100, "w"),
+                ("Größe", 45, "w"),
                 ("Menge", 45, "e"),
-                ("Datum", 100, "w"),
-                ("Erstattet", 72, "e"),
+                ("Datum", 95, "w"),
+                ("Erstattet", 68, "e"),
             ],
             leer_text="Zu dieser Bestellung gibt es noch keine Retoure.",
             hoehe=4,
@@ -130,16 +137,19 @@ class RetourenSeite(BasisSeite):
     # ------------------------------------------------------------------
 
     def beim_anzeigen(self) -> None:
+        """Laedt die Bestellliste beim Oeffnen der Seite."""
         self._bestellliste_laden()
         if self.aktuelle_bestellung is not None:
             self._bestellung_anzeigen(self.aktuelle_bestellung.bestellnummer)
 
     def stil_aktualisieren(self) -> None:
+        """Faerbt die Tabellen nach einem Moduswechsel neu."""
         self.bestell_tabelle.stil_anwenden()
         self.positions_tabelle.stil_anwenden()
         self.retouren_tabelle.stil_anwenden()
 
     def _bestellliste_laden(self) -> None:
+        """Fuellt die Liste der 50 neuesten Bestellungen."""
         bestellungen = self.anwendung.retouren_service.letzte_bestellungen(50)
         zeilen = [
             (
@@ -156,12 +166,14 @@ class RetourenSeite(BasisSeite):
         self.bestell_tabelle.fuellen(zeilen)
 
     def _bestellung_aus_liste(self) -> None:
+        """Uebernimmt die in der Liste angeklickte Bestellung."""
         bestellnummer = self.bestell_tabelle.gewaehlter_schluessel()
         if bestellnummer is not None:
             self.nummer_feld.setzen(bestellnummer)
             self._bestellung_anzeigen(bestellnummer)
 
     def _bestellung_suchen(self) -> None:
+        """Sucht die Bestellung zur eingetippten Belegnummer."""
         try:
             bestellnummer = ganzzahl_aus_text(self.nummer_feld.wert(), "Bestellnummer")
             self._bestellung_anzeigen(bestellnummer)
@@ -170,6 +182,7 @@ class RetourenSeite(BasisSeite):
             self.fehler_anzeigen(fehler)
 
     def _bestellung_anzeigen(self, bestellnummer: int) -> None:
+        """Zeigt Kopfdaten, Positionen und offene Mengen einer Bestellung."""
         try:
             bestellung = self.anwendung.retouren_service.bestellung_suchen(bestellnummer)
         except FanshopFehler as fehler:
@@ -193,18 +206,19 @@ class RetourenSeite(BasisSeite):
         self.offene_mengen = {}
         for position in bestellung.positionen:
             offen = self.anwendung.retouren_service.offene_menge(
-                bestellnummer, position.artikel_id, position.menge
+                position.position_id, position.menge
             )
-            self.offene_mengen[position.artikel_id] = offen
+            self.offene_mengen[position.position_id] = offen
             if offen == 0:
                 # Vollstaendig zurueckgegeben: grau markieren statt beim Klick
                 # eine Fehlermeldung aufzumachen.
-                markierungen[position.artikel_id] = "erledigt"
+                markierungen[position.position_id] = "erledigt"
             zeilen.append(
                 (
-                    position.artikel_id,
+                    position.position_id,
                     [
                         position.artikel_titel,
+                        position.groesse or "–",
                         position.menge,
                         offen if offen else "zurück",
                         euro(position.historischer_preis),
@@ -215,12 +229,14 @@ class RetourenSeite(BasisSeite):
         self._retouren_anzeigen(bestellnummer)
 
     def _retouren_anzeigen(self, bestellnummer: int) -> None:
+        """Fuellt die Liste der bereits gebuchten Retouren."""
         retouren = self.anwendung.retouren_service.retouren_zu(bestellnummer)
         zeilen = [
             (
                 retoure.retouren_id,
                 [
                     retoure.artikel_titel,
+                    retoure.groesse or "–",
                     retoure.menge,
                     retoure.retouren_datum,
                     euro(retoure.erstattungsbetrag),
@@ -235,18 +251,19 @@ class RetourenSeite(BasisSeite):
     # ------------------------------------------------------------------
 
     def _retoure_buchen(self) -> None:
+        """Bucht die markierte Position zurueck ins Lager (/F51/)."""
         if self.aktuelle_bestellung is None:
             self.melden("Bitte zuerst links eine Bestellung wählen.", art="fehler")
             return
 
-        artikel_id = self.positions_tabelle.gewaehlter_schluessel()
-        if artikel_id is None:
+        position_id = self.positions_tabelle.gewaehlter_schluessel()
+        if position_id is None:
             self.melden("Bitte die Zeile des Artikels anklicken.", art="fehler")
             return
 
         # Grau markierte Zeilen sind schon komplett zurueck - das sieht man,
         # deshalb genuegt hier eine Zeile in der Statusleiste.
-        if self.offene_mengen.get(artikel_id) == 0:
+        if self.offene_mengen.get(position_id) == 0:
             self.melden("Diese Position wurde bereits vollständig zurückgegeben.",
                         art="fehler")
             return
@@ -254,7 +271,7 @@ class RetourenSeite(BasisSeite):
         try:
             menge = ganzzahl_aus_text(self.menge_feld.wert() or "1", "Retourenmenge")
             retoure = self.anwendung.retouren_service.retoure_buchen(
-                self.aktuelle_bestellung.bestellnummer, artikel_id, menge
+                self.aktuelle_bestellung.bestellnummer, position_id, menge
             )
         except FanshopFehler as fehler:
             self.fehler_anzeigen(fehler)
@@ -266,7 +283,7 @@ class RetourenSeite(BasisSeite):
         bausteine.Dialog(
             self,
             "Retoure gebucht",
-            f"{retoure.menge} × „{retoure.artikel_titel}“ wurde zurück ins Lager "
+            f"{retoure.menge} × „{retoure.anzeigename}“ wurde zurück ins Lager "
             f"gebucht.\n\nBitte {euro(retoure.erstattungsbetrag)} an den Kunden auszahlen.",
             art="erfolg",
             grosse_zahl=euro(retoure.erstattungsbetrag),

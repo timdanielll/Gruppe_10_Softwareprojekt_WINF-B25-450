@@ -56,6 +56,7 @@ class KundenRepository(BasisRepository):
     # -- Lesen -------------------------------------------------------------
 
     def laden(self, kundennummer: int) -> Kunde | None:
+        """Laedt einen Kunden anhand seiner Nummer - oder None."""
         zeile = self.datenbank.abfragen_eine(
             "SELECT * FROM kunde WHERE kundennummer = ?", (kundennummer,)
         )

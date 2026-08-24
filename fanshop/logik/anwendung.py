@@ -37,6 +37,7 @@ class Anwendung:
         datenbank_pfad: Path | str | None = None,
         testdaten: bool = True,
     ) -> None:
+        """Steckt Datenbank, Repositories und Services zusammen."""
         # 1. Datenbank oeffnen und Tabellen sicherstellen
         self.datenbank: Datenbank = datenbank_vorbereiten(datenbank_pfad)
 
@@ -72,4 +73,5 @@ class Anwendung:
         self.datenbank.schliessen()
 
     def __repr__(self) -> str:
+        """Kurzform fuer die Fehlersuche."""
         return f"<Anwendung datenbank={self.datenbank.pfad}>"

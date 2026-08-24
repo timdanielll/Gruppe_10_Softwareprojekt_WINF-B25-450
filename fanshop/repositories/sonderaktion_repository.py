@@ -11,6 +11,7 @@ class SonderaktionRepository(BasisRepository):
     schluessel = "aktions_id"
 
     def speichern(self, aktion: Sonderaktion) -> int:
+        """Legt eine Sonderaktion an und gibt ihre Nummer zurueck."""
         neue_id = self.datenbank.ausfuehren(
             """INSERT INTO sonderaktion
                    (titel, art, zielkategorie, mindestbestellwert, rabattsatz, aktiv)
@@ -21,6 +22,7 @@ class SonderaktionRepository(BasisRepository):
         return neue_id
 
     def alle(self) -> list[Sonderaktion]:
+        """Alle hinterlegten Aktionen, aktive zuerst."""
         zeilen = self.datenbank.abfragen("SELECT * FROM sonderaktion ORDER BY aktions_id")
         return [Sonderaktion.aus_zeile(zeile) for zeile in zeilen]
 

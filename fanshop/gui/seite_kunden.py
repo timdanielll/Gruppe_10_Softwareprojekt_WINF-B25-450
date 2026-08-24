@@ -22,6 +22,7 @@ class KundenSeite(BasisSeite):
     titel = "Kunden"
 
     def aufbauen(self) -> None:
+        """Baut die Seite: Kundenkartei links, Stammdatenmaske rechts."""
         self.gewaehlte_kundennummer: int | None = None
         self._suchauftrag = None
 
@@ -35,6 +36,7 @@ class KundenSeite(BasisSeite):
     # ------------------------------------------------------------------
 
     def _liste_bauen(self) -> None:
+        """Baut Suchfeld und Kundentabelle (/F41/, /F44/)."""
         links = bausteine.Panel(self.inhalt, titel="Kundenkartei")
         links.grid(row=0, column=0, sticky="nsew", padx=(0, ABSTAND["md"]))
 
@@ -62,6 +64,7 @@ class KundenSeite(BasisSeite):
     # ------------------------------------------------------------------
 
     def _maske_bauen(self) -> None:
+        """Baut die Stammdatenmaske samt Sammelalbum und Starterset-Stand."""
         rechts = bausteine.Panel(self.inhalt, titel="Kundendaten")
         rechts.grid(row=0, column=1, sticky="nsew")
 
@@ -155,9 +158,11 @@ class KundenSeite(BasisSeite):
     # ------------------------------------------------------------------
 
     def beim_anzeigen(self) -> None:
+        """Laedt die Kundenliste beim Oeffnen der Seite."""
         self._liste_laden()
 
     def stil_aktualisieren(self) -> None:
+        """Faerbt die Tabelle nach einem Moduswechsel neu."""
         self.tabelle.stil_anwenden()
 
     def _suche_geplant(self, ereignis=None) -> None:
@@ -167,6 +172,7 @@ class KundenSeite(BasisSeite):
         self._suchauftrag = self.after(250, self._liste_laden)
 
     def _liste_laden(self) -> None:
+        """Fuellt die Kundenliste mit den Suchtreffern (/F44/)."""
         kunden = self.anwendung.kunden_service.suchen(self.suchfeld.wert())
         zeilen = [
             (
@@ -187,6 +193,7 @@ class KundenSeite(BasisSeite):
             self.tabelle.auswahl_setzen(self.gewaehlte_kundennummer)
 
     def _kunde_gewaehlt(self) -> None:
+        """Uebernimmt den markierten Kunden in die Maske."""
         kundennummer = self.tabelle.gewaehlter_schluessel()
         if kundennummer is None:
             return
@@ -221,6 +228,7 @@ class KundenSeite(BasisSeite):
         )
 
     def _maske_leeren(self) -> None:
+        """Leert die Maske fuer einen neuen Kunden."""
         self.gewaehlte_kundennummer = None
         self.name_feld.leeren()
         self.strasse_feld.leeren()
@@ -287,6 +295,7 @@ class KundenSeite(BasisSeite):
         )
 
     def _speichern(self) -> None:
+        """Speichert die Aenderungen am gewaehlten Kunden (/F42/)."""
         if self.gewaehlte_kundennummer is None:
             self.melden(
                 "Kein Kunde gewählt – bitte links anklicken oder neu anlegen.", art="fehler"

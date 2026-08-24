@@ -15,6 +15,7 @@ class RetourenService:
     """Nimmt Waren zurueck und erstattet Geld."""
 
     def __init__(self, bestell_repository: BestellRepository) -> None:
+        """Merkt sich das Bestell-Repository."""
         self.bestell_repository = bestell_repository
 
     # -- Suchen ------------------------------------------------------------
@@ -35,21 +36,24 @@ class RetourenService:
         """Die neuesten Bestellungen - als Hilfe, wenn der Kunde den Beleg vergessen hat."""
         return self.bestell_repository.letzte(anzahl)
 
-    def offene_menge(self, bestellnummer: int, artikel_id: int, gekaufte_menge: int) -> int:
-        """Wie viele Stueck dieser Position koennen noch zurueckgegeben werden?"""
-        return gekaufte_menge - self.bestell_repository.bereits_retourniert(
-            bestellnummer, artikel_id
-        )
+    def offene_menge(self, position_id: int, gekaufte_menge: int) -> int:
+        """Wie viele Stueck dieser Bestellzeile koennen noch zurueck?"""
+        return gekaufte_menge - self.bestell_repository.bereits_retourniert(position_id)
 
     # -- /F51/ Retoure buchen ----------------------------------------------
 
-    def retoure_buchen(self, bestellnummer: int, artikel_id: int, menge: int) -> Retoure:
+    def retoure_buchen(self, bestellnummer: int, position_id: int, menge: int) -> Retoure:
         """Bucht eine Rueckgabe und gibt den Retourenbeleg zurueck (/F51/).
+
+        Zurueckgegeben wird eine **Bestellzeile**, nicht ein Artikel: Seit die
+        Groesse beim Bestellen gewaehlt wird, kann derselbe Artikel zweimal in
+        einer Bestellung stehen (etwa ein Hoodie in M und einer in L). Nur die
+        Positionsnummer sagt eindeutig, welche der beiden gemeint ist.
 
         Geprueft wird dreierlei:
 
         1. Gibt es die Bestellung ueberhaupt?
-        2. War der Artikel in dieser Bestellung enthalten?
+        2. Gehoert die Position zu dieser Bestellung?
         3. Ist die Menge plausibel - also groesser als 0 und nicht mehr, als
            nach bereits erfolgten Teilretouren noch offen ist?
 
@@ -64,35 +68,38 @@ class RetourenService:
 
         position = None
         for kandidat in bestellung.positionen:
-            if kandidat.artikel_id == artikel_id:
+            if kandidat.position_id == position_id:
                 position = kandidat
                 break
 
         if position is None:
             raise ValidierungsFehler(
-                f"Dieser Artikel war nicht Teil der Bestellung {bestellnummer}."
+                f"Diese Position gehört nicht zur Bestellung {bestellnummer}."
             )
 
-        noch_offen = self.offene_menge(bestellnummer, artikel_id, position.menge)
+        noch_offen = self.offene_menge(position_id, position.menge)
         if noch_offen <= 0:
             raise ValidierungsFehler(
-                f"„{position.artikel_titel}“ wurde aus dieser Bestellung bereits "
+                f"„{position.anzeigename}“ wurde aus dieser Bestellung bereits "
                 "vollständig zurückgegeben."
             )
         if menge > noch_offen:
             raise ValidierungsFehler(
                 f"Es können nur noch {noch_offen} Stück von "
-                f"„{position.artikel_titel}“ zurückgegeben werden."
+                f"„{position.anzeigename}“ zurückgegeben werden."
             )
 
         retoure = self.bestell_repository.retoure_verbuchen(
             bestellnummer=bestellnummer,
-            artikel_id=artikel_id,
+            position_id=position_id,
+            artikel_id=position.artikel_id,
             menge=menge,
             historischer_preis=position.historischer_preis,
         )
-        # Titel nachtragen, damit die GUI den Beleg ohne weitere Abfrage anzeigen kann.
+        # Titel und Groesse nachtragen, damit die GUI den Beleg ohne weitere
+        # Abfrage anzeigen kann.
         retoure.artikel_titel = position.artikel_titel
+        retoure.groesse = position.groesse
         return retoure
 
     def retouren_zu(self, bestellnummer: int) -> list[Retoure]:

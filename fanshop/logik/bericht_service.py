@@ -32,6 +32,7 @@ class Bericht:
         umsatzanteile: list[dict],
         umsatz_je_kategorie: list[dict],
     ) -> None:
+        """Sammelt die Kennzahlen eines Zeitraums."""
         self.von_zeitstempel = von_zeitstempel
         self.bis_zeitstempel = bis_zeitstempel
         self.kennzahlen = kennzahlen                # /F311/, /F312/
@@ -40,14 +41,17 @@ class Bericht:
 
     @property
     def anzahl_bestellungen(self) -> int:
+        """Wie viele Bestellungen fielen in den Zeitraum?"""
         return self.kennzahlen["anzahl_bestellungen"]
 
     @property
     def umsatz(self) -> float:
+        """Bruttoumsatz des Zeitraums."""
         return self.kennzahlen["umsatz"]
 
     @property
     def ist_leer(self) -> bool:
+        """True, wenn es im Zeitraum keine Bestellung gab."""
         return self.anzahl_bestellungen == 0
 
 
@@ -55,6 +59,7 @@ class BerichtService:
     """Erzeugt die Auswertungen fuer die Shop-Leitung."""
 
     def __init__(self, bericht_repository: BerichtRepository) -> None:
+        """Merkt sich das Bericht-Repository."""
         self.bericht_repository = bericht_repository
 
     # -- Zeitraum bestimmen ------------------------------------------------

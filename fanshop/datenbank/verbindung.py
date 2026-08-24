@@ -42,6 +42,13 @@ class Datenbank:
         self.verbindung.commit()
         self._schema_nachziehen()
 
+    def _spalten_von(self, tabelle: str) -> set[str]:
+        """Die Spaltennamen einer Tabelle - fuer die Schemapruefung."""
+        return {
+            zeile["name"]
+            for zeile in self.verbindung.execute(f"PRAGMA table_info({tabelle})")
+        }
+
     def _schema_nachziehen(self) -> None:
         """Bringt eine aeltere ``fanshop.db`` auf den aktuellen Stand.
 
@@ -49,24 +56,49 @@ class Datenbank:
         neue Spalten fehlen dort also. Wer die Anwendung schon benutzt hat, soll
         seine Datenbank aber nicht loeschen muessen. Deshalb werden hier genau
         die Spalten nachgetragen, die seit der ersten Fassung dazugekommen
-        sind, und der Sammelstand auf die neue Regel "jedes Motiv nur einmal"
-        umgestellt.
+        sind. Ausserdem werden zwei Umstellungen nachgezogen:
+
+        * Sammelalbum auf die Regel "jedes Motiv nur einmal"
+        * Groesse vom Artikel auf die Bestellposition, und Retouren von der
+          Artikelnummer auf die Positionsnummer
         """
         nachtrag = [
             ("kunde", "starterset_erhalten", "INTEGER NOT NULL DEFAULT 0"),
             ("bestellung", "starterset_ausgegeben", "INTEGER NOT NULL DEFAULT 0"),
+            ("bestellposition", "groesse", "TEXT"),
+            ("retoure", "position_id", "INTEGER"),
         ]
 
         with self.verbindung:
             for tabelle, spalte, typ in nachtrag:
-                vorhandene = {
-                    zeile["name"]
-                    for zeile in self.verbindung.execute(f"PRAGMA table_info({tabelle})")
-                }
-                if spalte not in vorhandene:
+                if spalte not in self._spalten_von(tabelle):
                     self.verbindung.execute(
                         f"ALTER TABLE {tabelle} ADD COLUMN {spalte} {typ}"
                     )
+
+            # Die Groesse gehoert nicht mehr zum Artikel, sondern wird beim
+            # Bestellen gewaehlt. Die alte Spalte faellt deshalb weg - sonst
+            # bliebe eine Angabe stehen, die niemand mehr pflegt und der man
+            # trotzdem glauben wuerde.
+            if "groesse" in self._spalten_von("artikel"):
+                self.verbindung.execute("ALTER TABLE artikel DROP COLUMN groesse")
+
+            # Alte Retouren kennen ihre Bestellzeile noch nicht. Damals gab es
+            # je Bestellung und Artikel genau eine Position, deshalb ist die
+            # Zuordnung eindeutig nachtragbar.
+            self.verbindung.execute(
+                """UPDATE retoure
+                   SET position_id = (
+                           SELECT p.position_id FROM bestellposition p
+                           WHERE p.bestellnummer = retoure.bestellnummer
+                             AND p.artikel_id    = retoure.artikel_id
+                           LIMIT 1
+                       )
+                   WHERE position_id IS NULL"""
+            )
+            self.verbindung.execute(
+                "CREATE INDEX IF NOT EXISTS idx_retoure_position ON retoure (position_id)"
+            )
 
             # Frueher konnte dasselbe Motiv mehrfach gutgeschrieben werden.
             # Jetzt ist jeder Sticker einmalig: doppelte Gutschriften werden auf
@@ -143,6 +175,7 @@ class Datenbank:
         self.verbindung.close()
 
     def __repr__(self) -> str:
+        """Kurzform fuer die Fehlersuche."""
         return f"<Datenbank pfad={self.pfad}>"
 
 

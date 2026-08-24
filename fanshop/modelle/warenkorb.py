@@ -15,12 +15,29 @@ from fanshop.modelle.artikel import Artikel
 from fanshop.modelle.sonderaktion import Sonderaktion
 
 
-class WarenkorbPosition:
-    """Ein Artikel im Warenkorb, zusammen mit der gewuenschten Menge."""
+def positionsschluessel(artikel_id: int, groesse: str = "") -> str:
+    """Baut den Schluessel einer Warenkorbzeile: Artikelnummer plus Groesse.
 
-    def __init__(self, artikel: Artikel, menge: int) -> None:
+    Derselbe Pullover in Groesse M und in Groesse L sind zwei verschiedene
+    Zeilen. Artikelnummer allein reicht als Kennung deshalb nicht mehr.
+    """
+    return f"{artikel_id}|{groesse or ''}"
+
+
+class WarenkorbPosition:
+    """Ein Artikel im Warenkorb - mit Menge und, bei Kleidung, mit Groesse."""
+
+    def __init__(self, artikel: Artikel, menge: int, groesse: str = "") -> None:
+        """Legt eine Warenkorbzeile an."""
         self.artikel = artikel
         self.menge = menge
+        #: Gewaehlte Groesse; leer bei allem, was keine Groesse hat.
+        self.groesse = groesse
+
+    @property
+    def schluessel(self) -> str:
+        """Eindeutige Kennung dieser Zeile (Artikelnummer + Groesse)."""
+        return positionsschluessel(self.artikel.artikel_id, self.groesse)
 
     @property
     def einzelpreis(self) -> float:
@@ -37,8 +54,16 @@ class WarenkorbPosition:
         """Menge mal Originalpreis - also ohne jeden Rabatt."""
         return runde_geld(self.menge * self.artikel.preis)
 
+    @property
+    def anzeigename(self) -> str:
+        """Titel, bei Kleidung mit angehaengter Groesse."""
+        if self.groesse:
+            return f"{self.artikel.titel} (Gr. {self.groesse})"
+        return self.artikel.titel
+
     def __str__(self) -> str:
-        return f"{self.menge} x {self.artikel.titel}"
+        """Menge mal Anzeigename - z. B. '2 x Hoodie (Gr. L)'."""
+        return f"{self.menge} x {self.anzeigename}"
 
 
 class Preisuebersicht:
@@ -56,6 +81,7 @@ class Preisuebersicht:
         newsletter_rabatt: float = 0.0,
         aktionstitel: str = "",
     ) -> None:
+        """Sammelt alle Einzelbetraege einer Rechnung."""
         self.listenwert = listenwert              # Summe aller Originalpreise
         self.artikelrabatt = artikelrabatt        # Summe der Artikelrabatte
         self.aktionsrabatt = aktionsrabatt        # Rabatt der aktiven Sonderaktion
@@ -69,6 +95,7 @@ class Preisuebersicht:
 
     @property
     def rabatt_gesamt(self) -> float:
+        """Alle Rabatte zusammen."""
         return runde_geld(self.artikelrabatt + self.aktionsrabatt + self.newsletter_rabatt)
 
     @property
@@ -77,6 +104,7 @@ class Preisuebersicht:
         return runde_geld(self.listenwert - self.rabatt_gesamt)
 
     def __str__(self) -> str:
+        """Der Endbetrag als Text."""
         return f"Gesamtbetrag {self.gesamtbetrag:.2f} EUR"
 
 
@@ -84,24 +112,31 @@ class Warenkorb:
     """Sammelt Artikel fuer genau einen Kassiervorgang."""
 
     def __init__(self) -> None:
+        """Startet mit einem leeren Korb."""
         self.positionen: list[WarenkorbPosition] = []
 
     # -- /F11/ Artikel hinzufuegen -----------------------------------------
 
-    def hinzufuegen(self, artikel: Artikel, menge: int = 1) -> None:
-        """Legt einen Artikel in den Warenkorb.
+    def hinzufuegen(self, artikel: Artikel, menge: int = 1, groesse: str = "") -> None:
+        """Legt einen Artikel in den Warenkorb (/F11/).
 
-        Ist der Artikel schon enthalten, wird die Menge erhoeht.
-        Vor dem Hinzufuegen prueft das System den Lagerbestand (/F11/).
+        Bei Kleidung muss eine Groesse dabei sein - sie gehoert zur Zeile und
+        entscheidet mit, ob eine Position erhoeht oder eine neue angelegt wird:
+        derselbe Pullover in M und in L sind zwei Zeilen.
 
-        :raises ValidierungsFehler: wenn die Menge kleiner als 1 ist
+        Der Lagerbestand wird ueber **alle** Groessen eines Artikels gerechnet,
+        weil das Lager je Artikel gefuehrt wird und nicht je Groesse.
+
+        :raises ValidierungsFehler: bei Menge < 1 oder fehlender/falscher Groesse
         :raises BestandsFehler: wenn der Lagerbestand nicht ausreicht
         """
         if menge < 1:
             raise ValidierungsFehler("Die Menge muss mindestens 1 betragen.")
 
-        vorhandene_position = self.position_zu(artikel.artikel_id)
-        bereits_im_korb = vorhandene_position.menge if vorhandene_position else 0
+        gewaehlte_groesse = artikel.groesse_pruefen(groesse)
+
+        vorhandene_position = self.position_zu(artikel.artikel_id, gewaehlte_groesse)
+        bereits_im_korb = self.menge_von_artikel(artikel.artikel_id)
         neue_gesamtmenge = bereits_im_korb + menge
 
         if neue_gesamtmenge > artikel.lagerbestand:
@@ -111,28 +146,31 @@ class Warenkorb:
             )
 
         if vorhandene_position:
-            vorhandene_position.menge = neue_gesamtmenge
+            vorhandene_position.menge += menge
         else:
-            self.positionen.append(WarenkorbPosition(artikel, menge))
+            self.positionen.append(WarenkorbPosition(artikel, menge, gewaehlte_groesse))
 
     # -- /F12/ Artikel entfernen -------------------------------------------
 
-    def entfernen(self, artikel_id: int) -> None:
-        """Loescht eine Position vollstaendig aus dem Warenkorb (/F12/)."""
-        self.positionen = [p for p in self.positionen if p.artikel.artikel_id != artikel_id]
+    def entfernen(self, schluessel: str) -> None:
+        """Loescht die Zeile mit diesem Schluessel aus dem Warenkorb (/F12/)."""
+        self.positionen = [p for p in self.positionen if p.schluessel != schluessel]
 
-    def menge_setzen(self, artikel_id: int, menge: int) -> None:
-        """Setzt die Menge einer Position neu (/F12/: "Reduzierung der Menge").
+    def menge_setzen(self, schluessel: str, menge: int) -> None:
+        """Setzt die Menge einer Zeile neu (/F12/: "Reduzierung der Menge").
 
-        Eine Menge von 0 entfernt die Position.
+        Eine Menge von 0 entfernt die Zeile. Geprueft wird gegen den Bestand
+        des Artikels ueber alle Groessen hinweg.
         """
-        position = self.position_zu(artikel_id)
+        position = self.position_nach_schluessel(schluessel)
         if position is None:
             return
         if menge < 1:
-            self.entfernen(artikel_id)
+            self.entfernen(schluessel)
             return
-        if menge > position.artikel.lagerbestand:
+
+        andere_groessen = self.menge_von_artikel(position.artikel.artikel_id) - position.menge
+        if andere_groessen + menge > position.artikel.lagerbestand:
             raise BestandsFehler(
                 f"Von „{position.artikel.titel}“ sind nur noch "
                 f"{position.artikel.lagerbestand} Stück auf Lager."
@@ -145,14 +183,32 @@ class Warenkorb:
 
     # -- Abfragen ----------------------------------------------------------
 
-    def position_zu(self, artikel_id: int) -> WarenkorbPosition | None:
+    def position_zu(self, artikel_id: int, groesse: str = "") -> WarenkorbPosition | None:
+        """Sucht die Zeile zu Artikel und Groesse - oder None."""
+        return self.position_nach_schluessel(positionsschluessel(artikel_id, groesse))
+
+    def position_nach_schluessel(self, schluessel: str) -> WarenkorbPosition | None:
+        """Sucht die Zeile mit diesem Schluessel - oder None."""
         for position in self.positionen:
-            if position.artikel.artikel_id == artikel_id:
+            if position.schluessel == schluessel:
                 return position
         return None
 
+    def menge_von_artikel(self, artikel_id: int) -> int:
+        """Wie viele Stueck dieses Artikels liegen insgesamt im Korb?
+
+        Zaehlt ueber alle Groessen, denn der Lagerbestand wird je Artikel
+        gefuehrt und nicht je Groesse.
+        """
+        return sum(
+            position.menge
+            for position in self.positionen
+            if position.artikel.artikel_id == artikel_id
+        )
+
     @property
     def ist_leer(self) -> bool:
+        """True, wenn nichts im Korb liegt."""
         return len(self.positionen) == 0
 
     @property
@@ -222,4 +278,5 @@ class Warenkorb:
         return uebersicht
 
     def __str__(self) -> str:
+        """Kurzfassung: wie viele Zeilen und wie viele Stueck."""
         return f"Warenkorb mit {len(self.positionen)} Positionen ({self.stueckzahl} Stück)"

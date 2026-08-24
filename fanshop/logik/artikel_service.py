@@ -18,6 +18,7 @@ class ArtikelService:
     """Alles, was mit dem Sortiment passiert."""
 
     def __init__(self, artikel_repository: ArtikelRepository) -> None:
+        """Merkt sich das Artikel-Repository."""
         self.artikel_repository = artikel_repository
 
     # -- Pruefungen --------------------------------------------------------
@@ -29,7 +30,6 @@ class ArtikelService:
         preis: float,
         lagerbestand: int,
         rabattsatz: float,
-        groesse: str = "",
     ) -> None:
         """Prueft die Eingaben einer Artikelmaske (/NF11/).
 
@@ -57,12 +57,6 @@ class ArtikelService:
                 "(Eingabe als Dezimalzahl, z. B. 0,15 für 15 %)."
             )
 
-        if kategorie in konfiguration.KLEIDUNGS_KATEGORIEN and groesse:
-            if groesse not in konfiguration.GROESSEN:
-                raise ValidierungsFehler(
-                    "Ungültige Größe. Erlaubt sind: " + ", ".join(konfiguration.GROESSEN)
-                )
-
     # -- /F21/ Artikel anlegen ---------------------------------------------
 
     def anlegen(
@@ -73,15 +67,16 @@ class ArtikelService:
         lagerbestand: int,
         beschreibung: str = "",
         rabattsatz: float = 0.0,
-        groesse: str = "",
         bildpfad: str | None = None,
     ) -> Artikel:
         """Legt einen neuen Artikel an (/F21/).
 
         Welche Klasse entsteht, entscheidet die Kategorie: Damen und Herren
-        werden zu ``Kleidungsartikel`` (mit Groesse), alles andere zu ``Artikel``.
+        werden zu ``Kleidungsartikel``, alles andere zu ``Artikel``. Eine
+        Groesse wird hier **nicht** angegeben - ein Kleidungsstueck steht
+        einmal im Sortiment und gibt es in allen Groessen seiner Kategorie.
         """
-        self.pruefen(titel, kategorie, preis, lagerbestand, rabattsatz, groesse)
+        self.pruefen(titel, kategorie, preis, lagerbestand, rabattsatz)
 
         gemeinsam = dict(
             titel=titel.strip(),
@@ -93,7 +88,7 @@ class ArtikelService:
             bildpfad=bildpfad,
         )
         if kategorie in konfiguration.KLEIDUNGS_KATEGORIEN:
-            artikel = Kleidungsartikel(groesse=groesse, **gemeinsam)
+            artikel = Kleidungsartikel(**gemeinsam)
         else:
             artikel = Artikel(**gemeinsam)
 
@@ -110,7 +105,6 @@ class ArtikelService:
             artikel.preis,
             artikel.lagerbestand,
             artikel.rabattsatz,
-            getattr(artikel, "groesse", ""),
         )
         self.artikel_repository.aktualisieren(artikel)
 
@@ -160,12 +154,14 @@ class ArtikelService:
         )
 
     def laden(self, artikel_id: int) -> Artikel:
+        """Laedt einen Artikel - oder wirft NichtGefundenFehler."""
         artikel = self.artikel_repository.laden(artikel_id)
         if artikel is None:
             raise NichtGefundenFehler(f"Es gibt keinen Artikel mit der Nummer {artikel_id}.")
         return artikel
 
     def alle(self, nur_aktive: bool = True) -> list[Artikel]:
+        """Das ganze Sortiment, auf Wunsch samt deaktivierter Artikel."""
         return self.artikel_repository.alle(nur_aktive=nur_aktive)
 
     # -- Produktfotos ------------------------------------------------------

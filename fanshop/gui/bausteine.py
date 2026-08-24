@@ -35,6 +35,7 @@ class Ueberschrift(ctk.CTkLabel):
     """Der Titel einer Seite - das groesste Textelement oben links."""
 
     def __init__(self, master, text: str, **kwargs) -> None:
+        """Baut eine Bereichsueberschrift."""
         super().__init__(
             master,
             text=text,
@@ -53,6 +54,7 @@ class Panel(ctk.CTkFrame):
     """
 
     def __init__(self, master, titel: str = "", **kwargs) -> None:
+        """Baut eine Karte mit optionalem Titel und Inhaltsflaeche."""
         super().__init__(
             master,
             fg_color=farbe("karton"),
@@ -82,6 +84,7 @@ class Haarlinie(ctk.CTkFrame):
     """Eine 1 Pixel hohe Trennlinie. Ersetzt in diesem Design jeden Schatten."""
 
     def __init__(self, master, **kwargs) -> None:
+        """Baut eine duenne Trennlinie."""
         super().__init__(
             master, height=1, fg_color=farbe("linie"), corner_radius=0, **kwargs
         )
@@ -97,6 +100,7 @@ class HtwBalken(ctk.CTkFrame):
     """
 
     def __init__(self, master, hoehe: int = 4, **kwargs) -> None:
+        """Baut den Vierfarbbalken der htw saar."""
         super().__init__(master, fg_color="transparent", height=hoehe, width=1, **kwargs)
         for name in design.HTW_BALKEN:
             # width=1 ist wichtig: CustomTkinter-Rahmen fordern sonst je 200 px
@@ -114,6 +118,7 @@ class Hinweis(ctk.CTkLabel):
     """
 
     def __init__(self, master, text: str = "", umbruch: int = 0, **kwargs) -> None:
+        """Baut eine kleine, leise Hinweiszeile."""
         super().__init__(
             master,
             text=text,
@@ -146,6 +151,7 @@ class Feld(ctk.CTkFrame):
         breite: int = 220,
         **kwargs,
     ) -> None:
+        """Baut ein Eingabefeld mit Beschriftung und Fehlerzeile."""
         super().__init__(master, fg_color="transparent", **kwargs)
 
         ctk.CTkLabel(
@@ -177,13 +183,16 @@ class Feld(ctk.CTkFrame):
     # -- Werte -------------------------------------------------------------
 
     def wert(self) -> str:
+        """Der eingetippte Text, ohne Leerzeichen am Rand."""
         return self.eingabe.get().strip()
 
     def setzen(self, text: str) -> None:
+        """Schreibt einen Wert ins Feld."""
         self.eingabe.delete(0, "end")
         self.eingabe.insert(0, str(text))
 
     def leeren(self) -> None:
+        """Loescht Inhalt und Fehlermeldung."""
         self.eingabe.delete(0, "end")
         self.fehler_loeschen()
 
@@ -199,6 +208,7 @@ class Feld(ctk.CTkFrame):
         self.eingabe.configure(border_color=design.einzelfarbe("fehler"))
 
     def fehler_loeschen(self) -> None:
+        """Blendet die Fehlerzeile wieder aus."""
         self._fehlerzeile.pack_forget()
         self.eingabe.configure(border_color=design.einzelfarbe("linie"))
 
@@ -215,6 +225,7 @@ class Auswahlfeld(ctk.CTkFrame):
         beim_waehlen=None,
         **kwargs,
     ) -> None:
+        """Baut ein Dropdown mit Beschriftung."""
         super().__init__(master, fg_color="transparent", **kwargs)
 
         ctk.CTkLabel(
@@ -237,12 +248,15 @@ class Auswahlfeld(ctk.CTkFrame):
         self.auswahl.pack(fill="x")
 
     def wert(self) -> str:
+        """Der gerade gewaehlte Eintrag."""
         return self.auswahl.get()
 
     def setzen(self, text: str) -> None:
+        """Waehlt einen Eintrag aus."""
         self.auswahl.set(text)
 
     def werte_setzen(self, werte: list[str]) -> None:
+        """Tauscht die Auswahlliste aus und waehlt den ersten Eintrag."""
         self.auswahl.configure(values=werte or [""])
         if werte:
             self.auswahl.set(werte[0])
@@ -371,6 +385,7 @@ class StickerAlbum(ctk.CTkFrame):
     """
 
     def __init__(self, master, **kwargs) -> None:
+        """Baut die Reihe fuer die sechs Sammelmotive."""
         super().__init__(master, fg_color="transparent", **kwargs)
 
         self.kopf = ctk.CTkLabel(
@@ -463,6 +478,7 @@ class Bildkarte(ctk.CTkFrame):
     """
 
     def __init__(self, master, **kwargs) -> None:
+        """Baut die Karte fuer Produktfoto, Titel und Kennzahlen."""
         super().__init__(
             master, fg_color=farbe("karton_tief"), corner_radius=RADIUS["karte"], **kwargs
         )
@@ -502,6 +518,7 @@ class Bildkarte(ctk.CTkFrame):
         self.leeren()
 
     def leeren(self, text: str = "Artikel in der Liste auswählen.") -> None:
+        """Zeigt statt eines Fotos einen Platzhaltertext."""
         # Durchsichtiges Bild statt None - sonst bleibt das vorige Foto stehen.
         self._bild_referenz = leeres_bild(design.BILDGROESSE, design.BILDGROESSE)
         self.bildflaeche.configure(
@@ -565,6 +582,7 @@ class Kachel(ctk.CTkFrame):
     """Eine große Kennzahl mit Beschriftung - für die Berichtsseite."""
 
     def __init__(self, master, beschriftung: str, zusatz: str = "", **kwargs) -> None:
+        """Baut eine Kennzahlkachel fuer die Berichte."""
         super().__init__(
             master, fg_color=farbe("karton"), corner_radius=RADIUS["karte"], **kwargs
         )
@@ -591,6 +609,7 @@ class Kachel(ctk.CTkFrame):
         ).pack(fill="x", padx=ABSTAND["lg"], pady=(0, ABSTAND["md"]))
 
     def setzen(self, text: str) -> None:
+        """Schreibt eine neue Zahl in die Kachel."""
         self.wert.configure(text=text)
 
 
@@ -610,6 +629,7 @@ class Schrittleiste(ctk.CTkFrame):
     """
 
     def __init__(self, master, schritte: list[str], beim_springen=None, **kwargs) -> None:
+        """Baut die Schrittanzeige der Kasse."""
         super().__init__(master, fg_color="transparent", **kwargs)
 
         self.schritte = schritte
@@ -696,6 +716,7 @@ class Statuszeile(ctk.CTkFrame):
     RUHETEXT = "Bereit."
 
     def __init__(self, master, **kwargs) -> None:
+        """Baut die Meldezeile am unteren Rand einer Seite."""
         super().__init__(master, fg_color="transparent", height=22, **kwargs)
 
         self.punkt = ctk.CTkLabel(
@@ -729,6 +750,7 @@ class Statuszeile(ctk.CTkFrame):
         self._auftrag = self.after(dauer, self.zuruecksetzen)
 
     def zuruecksetzen(self) -> None:
+        """Loescht die letzte Meldung."""
         self._auftrag = None
         self.punkt.configure(text_color=farbe("text_leise"))
         self.text.configure(text=self.RUHETEXT, text_color=farbe("text_leise"))
@@ -762,6 +784,7 @@ class Tabelle(ctk.CTkFrame):
         hoehe: int = 10,
         **kwargs,
     ) -> None:
+        """Baut eine Tabelle mit Spalten, Bildlauf und Zeilenmarkierung."""
         super().__init__(master, fg_color="transparent", **kwargs)
 
         self.spalten = spalten
@@ -925,11 +948,13 @@ class Tabelle(ctk.CTkFrame):
             self.leer_hinweis.place(relx=0.5, rely=0.4, anchor="center")
 
     def leeren(self) -> None:
+        """Entfernt alle Zeilen."""
         for eintrag in self.baum.get_children():
             self.baum.delete(eintrag)
 
     @property
     def ist_leer(self) -> bool:
+        """True, wenn keine Zeile angezeigt wird."""
         return not self.baum.get_children()
 
     # -- Auswahl -----------------------------------------------------------
@@ -944,7 +969,17 @@ class Tabelle(ctk.CTkFrame):
         except ValueError:
             return None
 
+    def gewaehlter_schluessel_text(self) -> str | None:
+        """Der Schluessel der markierten Zeile als Text - oder None.
+
+        Wird gebraucht, wo eine Zeile nicht durch eine Zahl bestimmt ist: Im
+        Warenkorb gehoert zur Kennung auch die Groesse (z. B. "12|L").
+        """
+        auswahl = self.baum.selection()
+        return auswahl[0] if auswahl else None
+
     def auswahl_setzen(self, schluessel: int) -> None:
+        """Markiert die Zeile mit diesem Schluessel."""
         eintrag = str(schluessel)
         if self.baum.exists(eintrag):
             self.baum.selection_set(eintrag)
@@ -1043,6 +1078,7 @@ class Dialog(ctk.CTkToplevel):
         bild_beschriftungen: list[str] | None = None,
         grosse_zahl: str = "",
     ) -> None:
+        """Baut ein modales Fenster und wartet, bis es geschlossen wird."""
         super().__init__(master)
 
         self.antwort = False
@@ -1136,6 +1172,7 @@ class Dialog(ctk.CTkToplevel):
                 ).pack(pady=(ABSTAND["xs"], 0))
 
     def _mittig_setzen(self, master) -> None:
+        """Setzt das Fenster mittig ueber das Hauptfenster."""
         self.update_idletasks()
         try:
             x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
@@ -1145,11 +1182,13 @@ class Dialog(ctk.CTkToplevel):
             pass
 
     def _bestaetigen(self) -> None:
+        """Schliesst den Dialog mit Ja."""
         self.antwort = True
         self.grab_release()
         self.destroy()
 
     def _abbrechen(self) -> None:
+        """Schliesst den Dialog mit Nein."""
         self.antwort = False
         self.grab_release()
         self.destroy()
@@ -1170,6 +1209,7 @@ def fehler_zeigen(master, fehler) -> None:
 
 
 def erfolg_zeigen(master, titel: str, nachricht: str) -> None:
+    """Meldung mit gruenem Erfolgszeichen und einem OK-Knopf."""
     Dialog(master, titel, nachricht, art="erfolg")
 
 

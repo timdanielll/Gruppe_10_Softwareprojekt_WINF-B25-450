@@ -17,6 +17,7 @@ class StartersetStand:
         anzahl_bestellungen: int,
         sammlung_vollstaendig: bool,
     ) -> None:
+        """Sammelt den Starterset-Stand eines Kunden."""
         self.erhalten = erhalten
         self.anzahl_bestellungen = anzahl_bestellungen
         self.sammlung_vollstaendig = sammlung_vollstaendig
@@ -40,6 +41,7 @@ class StartersetStand:
         )
 
     def __str__(self) -> str:
+        """Ob das Starterset schon heraus ist."""
         if self.erhalten:
             return f"{starterset_modell.TITEL} erhalten"
         return f"{starterset_modell.TITEL} offen"
@@ -53,6 +55,7 @@ class KundenService:
         kunden_repository: KundenRepository,
         bestell_repository: BestellRepository | None = None,
     ) -> None:
+        """Merkt sich die Repositories der Kundenkartei."""
         self.kunden_repository = kunden_repository
         # Nur fuer den Starterset-Stand noetig: Der haengt an der Zahl der
         # abgeschlossenen Einkaeufe, und die weiss allein das Bestell-Repository.
@@ -107,6 +110,7 @@ class KundenService:
         return kunde
 
     def aktualisieren(self, kunde: Kunde) -> None:
+        """Schreibt geaenderte Stammdaten zurueck (/F42/)."""
         self.pruefen(kunde.name, kunde.strasse, kunde.plz, kunde.ort)
         self.kunden_repository.aktualisieren(kunde)
 
@@ -127,6 +131,7 @@ class KundenService:
         return self.kunden_repository.suchen(suchtext)
 
     def laden(self, kundennummer: int) -> Kunde:
+        """Laedt einen Kunden - oder wirft NichtGefundenFehler."""
         kunde = self.kunden_repository.laden(kundennummer)
         if kunde is None:
             raise NichtGefundenFehler(f"Es gibt keinen Kunden mit der Nummer {kundennummer}.")

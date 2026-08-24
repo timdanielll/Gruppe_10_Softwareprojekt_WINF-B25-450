@@ -26,6 +26,7 @@ class Stickermotiv:
     """Ein Sammelmotiv: Dateiname plus Anzeigetitel."""
 
     def __init__(self, schluessel: str, titel: str, datei: str) -> None:
+        """Legt ein Stickermotiv mit Schluessel, Titel und Bilddatei an."""
         self.schluessel = schluessel      # so steht es in der Datenbank
         self.titel = titel                # so steht es in der Oberflaeche
         self.datei = datei                # Dateiname in assets/sticker/
@@ -36,9 +37,11 @@ class Stickermotiv:
         return konfiguration.STICKER_VERZEICHNIS / self.datei
 
     def __str__(self) -> str:
+        """Der Anzeigetitel des Motivs."""
         return self.titel
 
     def __repr__(self) -> str:
+        """Kurzform fuer die Fehlersuche."""
         return f"<Stickermotiv {self.schluessel}>"
 
 

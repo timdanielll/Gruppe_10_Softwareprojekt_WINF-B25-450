@@ -31,6 +31,7 @@ class BasisSeite(ctk.CTkFrame):
     titel = ""
 
     def __init__(self, master, anwendung) -> None:
+        """Baut Rahmen, Inhaltsflaeche und Statuszeile einer Fachseite."""
         super().__init__(master, fg_color="transparent")
         self.anwendung = anwendung
 
@@ -90,7 +91,9 @@ class BasisSeite(ctk.CTkFrame):
         bausteine.fehler_zeigen(self, fehler)
 
     def hinweis_anzeigen(self, titel: str, nachricht: str) -> None:
+        """Zeigt eine einfache Meldung im Dialogfenster."""
         bausteine.hinweis_zeigen(self, titel, nachricht)
 
     def frage_stellen(self, titel: str, nachricht: str, ja_text: str = "Ja") -> bool:
+        """Stellt eine Ja-Nein-Frage und gibt die Antwort zurueck."""
         return bausteine.frage_stellen(self, titel, nachricht, ja_text)

@@ -4,11 +4,13 @@ from fanshop.modelle.artikel import Artikel
 from fanshop.repositories.basis_repository import BasisRepository
 
 # Alle Spalten in der Reihenfolge, in der Artikel.als_datenbankwerte() liefert.
+# Ohne "groesse": Die Groesse haengt nicht mehr am Artikel, sondern wird beim
+# Bestellen gewaehlt (siehe modelle/artikel.py).
 SPALTEN = (
     "kategorie, titel, beschreibung, preis, rabattsatz, "
-    "lagerbestand, erstellungsdatum, aktiv, groesse, bildpfad"
+    "lagerbestand, erstellungsdatum, aktiv, bildpfad"
 )
-PLATZHALTER = ", ".join("?" * 10)
+PLATZHALTER = ", ".join("?" * 9)
 
 
 class ArtikelRepository(BasisRepository):
@@ -36,7 +38,7 @@ class ArtikelRepository(BasisRepository):
             """UPDATE artikel SET
                    kategorie = ?, titel = ?, beschreibung = ?, preis = ?,
                    rabattsatz = ?, lagerbestand = ?, erstellungsdatum = ?,
-                   aktiv = ?, groesse = ?, bildpfad = ?
+                   aktiv = ?, bildpfad = ?
                WHERE artikel_id = ?""",
             artikel.als_datenbankwerte() + (artikel.artikel_id,),
         )
@@ -64,12 +66,14 @@ class ArtikelRepository(BasisRepository):
     # -- Lesen -------------------------------------------------------------
 
     def laden(self, artikel_id: int) -> Artikel | None:
+        """Laedt einen Artikel anhand seiner Nummer - oder None."""
         zeile = self.datenbank.abfragen_eine(
             "SELECT * FROM artikel WHERE artikel_id = ?", (artikel_id,)
         )
         return Artikel.aus_zeile(zeile) if zeile else None
 
     def alle(self, nur_aktive: bool = True) -> list[Artikel]:
+        """Alle Artikel, nach Kategorie und Titel sortiert."""
         sql = "SELECT * FROM artikel"
         if nur_aktive:
             sql += " WHERE aktiv = 1"

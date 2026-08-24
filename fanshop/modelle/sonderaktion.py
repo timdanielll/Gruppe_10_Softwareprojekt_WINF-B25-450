@@ -35,6 +35,7 @@ class Sonderaktion:
         aktiv: bool = False,
         aktions_id: int | None = None,
     ) -> None:
+        """Legt eine Rabattaktion an und prueft den Rabattsatz."""
         # Ohne diese Pruefung koennte eine Aktion mit rabattsatz >= 1.0 den
         # Gesamtbetrag negativ machen - der Shop wuerde Geld herausgeben.
         if not 0.0 <= rabattsatz < 1.0:
@@ -67,6 +68,7 @@ class Sonderaktion:
 
     @classmethod
     def aus_zeile(cls, zeile: sqlite3.Row) -> "Sonderaktion":
+        """Baut eine Sonderaktion aus einer Datenbankzeile."""
         return cls(
             aktions_id=zeile["aktions_id"],
             titel=zeile["titel"],
@@ -78,6 +80,7 @@ class Sonderaktion:
         )
 
     def als_datenbankwerte(self) -> tuple:
+        """Alle Felder in Speicherreihenfolge."""
         return (
             self.titel,
             self.art,
@@ -88,4 +91,5 @@ class Sonderaktion:
         )
 
     def __str__(self) -> str:
+        """Der Titel der Aktion."""
         return self.titel
