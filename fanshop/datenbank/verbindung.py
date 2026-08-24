@@ -40,6 +40,50 @@ class Datenbank:
         sql = konfiguration.SCHEMA_DATEI.read_text(encoding="utf-8")
         self.verbindung.executescript(sql)
         self.verbindung.commit()
+        self._schema_nachziehen()
+
+    def _schema_nachziehen(self) -> None:
+        """Bringt eine aeltere ``fanshop.db`` auf den aktuellen Stand.
+
+        ``CREATE TABLE IF NOT EXISTS`` legt bestehende Tabellen nicht neu an -
+        neue Spalten fehlen dort also. Wer die Anwendung schon benutzt hat, soll
+        seine Datenbank aber nicht loeschen muessen. Deshalb werden hier genau
+        die Spalten nachgetragen, die seit der ersten Fassung dazugekommen
+        sind, und der Sammelstand auf die neue Regel "jedes Motiv nur einmal"
+        umgestellt.
+        """
+        nachtrag = [
+            ("kunde", "starterset_erhalten", "INTEGER NOT NULL DEFAULT 0"),
+            ("bestellung", "starterset_ausgegeben", "INTEGER NOT NULL DEFAULT 0"),
+        ]
+
+        with self.verbindung:
+            for tabelle, spalte, typ in nachtrag:
+                vorhandene = {
+                    zeile["name"]
+                    for zeile in self.verbindung.execute(f"PRAGMA table_info({tabelle})")
+                }
+                if spalte not in vorhandene:
+                    self.verbindung.execute(
+                        f"ALTER TABLE {tabelle} ADD COLUMN {spalte} {typ}"
+                    )
+
+            # Frueher konnte dasselbe Motiv mehrfach gutgeschrieben werden.
+            # Jetzt ist jeder Sticker einmalig: doppelte Gutschriften werden auf
+            # eine reduziert und der Zaehler an das Album angeglichen, damit
+            # beide Staende wieder zusammenpassen.
+            self.verbindung.execute("UPDATE kunde_sticker SET anzahl = 1 WHERE anzahl <> 1")
+            self.verbindung.execute(
+                """UPDATE kunde
+                   SET sticker_kontostand = (
+                           SELECT COUNT(*) FROM kunde_sticker s
+                           WHERE s.kundennummer = kunde.kundennummer
+                       )
+                   WHERE sticker_kontostand <> (
+                           SELECT COUNT(*) FROM kunde_sticker s
+                           WHERE s.kundennummer = kunde.kundennummer
+                       )"""
+            )
 
     # -- Lesen -------------------------------------------------------------
 
