@@ -13,6 +13,7 @@ from fanshop.gui.basis_seite import BasisSeite
 from fanshop.gui.design import ABSTAND, farbe, schrift
 from fanshop.logik.artikel_service import OHNE_FOTO
 from fanshop.hilfsmittel import euro, ganzzahl_aus_text, prozent, zahl_aus_text
+from fanshop.modelle import starterset as starterset_modell
 
 ALLE_KATEGORIEN = "Alle Kategorien"
 OHNE_GROESSE = "–"
@@ -207,6 +208,19 @@ class ArtikelSeite(BasisSeite):
         bausteine.Hinweis(
             knoepfe, "Höchstens eine Aktion gleichzeitig."
         ).pack(side="left", padx=(ABSTAND["md"], 0))
+
+        # Das Starterset ist ein Dauerangebot und keine schaltbare Aktion:
+        # Es kostet nichts extra, mindert keinen Preis und soll nicht
+        # verschwinden, nur weil nebenbei ein Kategorierabatt laeuft. Deshalb
+        # steht es hier als fester Hinweis unter der Tabelle (/F53/).
+        bausteine.Hinweis(
+            bereich.inhalt,
+            f"Dauerhaftes Sonderangebot · {starterset_modell.TITEL}: "
+            f"{starterset_modell.inhalt_text()} gratis "
+            f"({starterset_modell.bedingung_text()}). "
+            f"Läuft automatisch und ohne Mindestbestellwert.",
+            umbruch=520,
+        ).pack(fill="x", pady=(ABSTAND["sm"], 0))
 
     def _aktionen_laden(self) -> None:
         aktionen = self.anwendung.sonderaktion_service.alle()

@@ -3,8 +3,11 @@
 from fanshop.modelle.kunde import Kunde
 from fanshop.repositories.basis_repository import BasisRepository
 
-SPALTEN = "name, strasse, plz, ort, newsletter_aktiv, newsletter_rabatt_verfuegbar, sticker_kontostand"
-PLATZHALTER = ", ".join("?" * 7)
+SPALTEN = (
+    "name, strasse, plz, ort, newsletter_aktiv, newsletter_rabatt_verfuegbar, "
+    "sticker_kontostand, starterset_erhalten"
+)
+PLATZHALTER = ", ".join("?" * 8)
 
 
 class KundenRepository(BasisRepository):
@@ -27,11 +30,12 @@ class KundenRepository(BasisRepository):
     def aktualisieren(self, kunde: Kunde) -> None:
         """Schreibt die Stammdaten zurueck.
 
-        **Ohne** ``sticker_kontostand``: Der Zaehler gehoert zum Sammelalbum
-        und wird ausschliesslich beim Kauf hochgezaehlt (siehe
-        ``BestellRepository.kauf_verbuchen``). Wuerde er hier mitgeschrieben,
-        koennte ein veraltetes Kunde-Objekt den Zaehler zuruecksetzen und
-        Album und Zaehler liefen auseinander.
+        **Ohne** ``sticker_kontostand`` und ``starterset_erhalten``: Beide
+        gehoeren zum Sammelalbum und werden ausschliesslich beim Kauf gesetzt
+        (siehe ``BestellRepository.kauf_verbuchen``). Wuerden sie hier
+        mitgeschrieben, koennte ein veraltetes Kunde-Objekt den Zaehler
+        zuruecksetzen - oder das einmalige Starterset ein zweites Mal
+        freigeben.
         """
         self.datenbank.ausfuehren(
             """UPDATE kunde SET
@@ -103,7 +107,12 @@ class KundenRepository(BasisRepository):
     # -- /F53/ Sticker-Sammelalbum -----------------------------------------
 
     def sticker_album(self, kundennummer: int) -> dict[str, int]:
-        """Welche Motive besitzt der Kunde und wie oft?
+        """Welche Motive besitzt der Kunde?
+
+        Da jedes Motiv nur einmal vergeben wird, ist die Anzahl immer 1. Das
+        Woerterbuch bleibt trotzdem ein Woerterbuch: So laesst sich das Album
+        ueber ``sum(album.values())`` weiterhin direkt mit dem Zaehler
+        ``kunde.sticker_kontostand`` vergleichen.
 
         :return: Woerterbuch Motivschluessel -> Anzahl (nur vorhandene Motive)
         """
@@ -112,6 +121,20 @@ class KundenRepository(BasisRepository):
             (kundennummer,),
         )
         return {zeile["motiv"]: zeile["anzahl"] for zeile in zeilen}
+
+    # -- /F53/ Starterset --------------------------------------------------
+
+    def starterset_erhalten(self, kundennummer: int) -> bool:
+        """Hat der Kunde das Starterset schon bekommen?
+
+        Wird vor jeder Vergabe geprueft - das Sonderangebot gibt es genau
+        einmal je Kunde, nicht einmal je Bestellung.
+        """
+        zeile = self.datenbank.abfragen_eine(
+            "SELECT starterset_erhalten FROM kunde WHERE kundennummer = ?",
+            (kundennummer,),
+        )
+        return bool(zeile["starterset_erhalten"]) if zeile else False
 
     # -- /F52/ Newsletter --------------------------------------------------
 

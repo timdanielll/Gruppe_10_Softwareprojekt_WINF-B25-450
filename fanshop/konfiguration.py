@@ -46,7 +46,22 @@ GROESSEN = ("XS", "S", "M", "L", "XL", "XXL")
 NEWSLETTER_RABATTSATZ = 0.10
 
 # Anzahl der Sticker, die pro abgeschlossenem Einkauf gratis ausgegeben werden (/F53/).
-STICKER_PRO_EINKAUF = 3
+# Es gibt sechs Motive, also ist die Sammlung nach genau drei Einkaeufen voll.
+# Bewusst **ohne** Mindestbestellwert: jeder abgeschlossene Kauf zaehlt, egal
+# wie hoch er ist. Und jedes Motiv wird nur **einmal** vergeben - wer schon
+# alle sechs hat, bekommt keine weiteren Sticker mehr.
+STICKER_PRO_EINKAUF = 2
+
+# ---------------------------------------------------------------------------
+# Starterset - das Sonderangebot fuer eine vollstaendige Sammlung (/F53/)
+# ---------------------------------------------------------------------------
+# Wer STARTERSET_MINDESTBESTELLUNGEN Einkaeufe getaetigt und damit alle sechs
+# Motive zusammen hat, bekommt einmalig das Starterset gratis dazu: Es wird dem
+# Kundenkonto gutgeschrieben und der Bestellung beigelegt. Auch hier gilt kein
+# Mindestbestellwert - es zaehlt allein die Zahl der Einkaeufe.
+STARTERSET_TITEL = "Starterset"
+STARTERSET_MINDESTBESTELLUNGEN = 3
+STARTERSET_INHALT = ("Stift", "Block", "Jutebeutel")
 
 # Anzeigetext, wenn eine Bestellung keinem Kunden mehr zugeordnet ist (/F43/).
 ANONYMER_KUNDE = "Geloeschter Kunde"

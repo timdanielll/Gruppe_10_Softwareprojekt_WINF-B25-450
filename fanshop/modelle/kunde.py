@@ -17,6 +17,7 @@ class Kunde:
         newsletter_aktiv: bool = False,
         newsletter_rabatt_verfuegbar: bool = False,
         sticker_kontostand: int = 0,
+        starterset_erhalten: bool = False,
         kundennummer: int | None = None,
     ) -> None:
         self.kundennummer = kundennummer        # None = noch nicht gespeichert
@@ -27,6 +28,8 @@ class Kunde:
         self.newsletter_aktiv = newsletter_aktiv
         self.newsletter_rabatt_verfuegbar = newsletter_rabatt_verfuegbar
         self.sticker_kontostand = sticker_kontostand
+        # Das Starterset gibt es genau einmal je Kunde (/F53/).
+        self.starterset_erhalten = starterset_erhalten
 
     # -- berechnete Werte --------------------------------------------------
 
@@ -49,6 +52,17 @@ class Kunde:
         """True, wenn der einmalige 10-Prozent-Gutschein noch offen ist (/F52/)."""
         return self.newsletter_aktiv and self.newsletter_rabatt_verfuegbar
 
+    @property
+    def sammlung_vollstaendig(self) -> bool:
+        """True, wenn der Kunde alle Stickermotive besitzt (/F53/).
+
+        Der Zaehler genuegt hier, weil jedes Motiv nur einmal vergeben wird -
+        sechs Sticker koennen also nur sechs verschiedene sein.
+        """
+        from fanshop.modelle.sticker import MOTIVE
+
+        return self.sticker_kontostand >= len(MOTIVE)
+
     # -- Umwandlung Datenbank <-> Objekt -----------------------------------
 
     @classmethod
@@ -62,6 +76,7 @@ class Kunde:
             newsletter_aktiv=bool(zeile["newsletter_aktiv"]),
             newsletter_rabatt_verfuegbar=bool(zeile["newsletter_rabatt_verfuegbar"]),
             sticker_kontostand=zeile["sticker_kontostand"],
+            starterset_erhalten=bool(zeile["starterset_erhalten"]),
         )
 
     def als_datenbankwerte(self) -> tuple:
@@ -73,6 +88,7 @@ class Kunde:
             1 if self.newsletter_aktiv else 0,
             1 if self.newsletter_rabatt_verfuegbar else 0,
             self.sticker_kontostand,
+            1 if self.starterset_erhalten else 0,
         )
 
     # -- Darstellung -------------------------------------------------------

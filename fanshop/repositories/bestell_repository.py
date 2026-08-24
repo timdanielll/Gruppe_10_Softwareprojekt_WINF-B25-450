@@ -11,7 +11,6 @@ verteilen, koennte nach einem Absturz die Bestellung existieren, das Lager aber
 noch unveraendert sein. Genau das verbietet /NF30/.
 """
 
-from fanshop import konfiguration
 from fanshop.hilfsmittel import jetzt_iso, jetzt_zeitstempel, runde_geld
 from fanshop.modelle.bestellung import Bestellposition, Bestellung
 from fanshop.modelle.retoure import Retoure
@@ -32,8 +31,9 @@ class BestellRepository(BasisRepository):
         positionen: list,
         gesamtbetrag: float,
         newsletter_rabatt_angewendet: bool,
-        sticker: int = konfiguration.STICKER_PRO_EINKAUF,
+        sticker: int = 0,
         sticker_motive: list[str] | None = None,
+        starterset: bool = False,
     ) -> int:
         """Speichert einen abgeschlossenen Einkauf vollstaendig (/F14/).
 
@@ -43,7 +43,8 @@ class BestellRepository(BasisRepository):
         2. je Warenkorbposition eine Bestellposition anlegen
         3. Lagerbestand der gekauften Artikel reduzieren (Mitnahmemodus)
         4. dem Kunden Sticker gutschreiben (/F53/)
-        5. einen benutzten Newsletter-Gutschein als verbraucht markieren (/F52/)
+        5. das Starterset gutschreiben, wenn die Sammlung damit voll ist (/F53/)
+        6. einen benutzten Newsletter-Gutschein als verbraucht markieren (/F52/)
 
         Zum gespeicherten Einzelpreis: In ``historischer_preis`` steht der
         Preis, den der Kunde **tatsaechlich** pro Stueck gezahlt hat. Rabatte
@@ -52,6 +53,13 @@ class BestellRepository(BasisRepository):
         Retoure mehr Geld erstatten, als eingenommen wurde.
 
         :param positionen: Liste von ``WarenkorbPosition``
+        :param sticker: wie viele Sticker gutgeschrieben werden. Muss zur
+                        Laenge von ``sticker_motive`` passen - sonst laufen
+                        Zaehler und Sammelalbum auseinander. Der KassenService
+                        leitet beides aus derselben Motivliste ab, deshalb ist
+                        der Standardwert hier bewusst 0 und nicht
+                        ``STICKER_PRO_EINKAUF``.
+        :param starterset: True, wenn dieser Bestellung das Starterset beiliegt
         :return: die vergebene Bestellnummer
         """
         zwischensumme = runde_geld(sum(p.zeilensumme for p in positionen))
@@ -63,14 +71,16 @@ class BestellRepository(BasisRepository):
             cursor = verbindung.execute(
                 """INSERT INTO bestellung
                        (kundennummer, zeitstempel, gesamtbetrag,
-                        newsletter_rabatt_angewendet, sticker_ausgegeben)
-                   VALUES (?, ?, ?, ?, ?)""",
+                        newsletter_rabatt_angewendet, sticker_ausgegeben,
+                        starterset_ausgegeben)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
                 (
                     kundennummer,
                     jetzt_zeitstempel(),
                     gesamtbetrag,
                     1 if newsletter_rabatt_angewendet else 0,
                     sticker,
+                    1 if starterset else 0,
                 ),
             )
             bestellnummer = cursor.lastrowid
@@ -108,16 +118,30 @@ class BestellRepository(BasisRepository):
                     (sticker, kundennummer),
                 )
                 for motiv in sticker_motive or []:
-                    # "ON CONFLICT" erhoeht die Anzahl, wenn der Kunde dieses
-                    # Motiv schon besitzt, und legt sonst eine neue Zeile an.
+                    # Jedes Motiv gibt es nur einmal: "DO NOTHING" laesst eine
+                    # bereits vorhandene Zeile unveraendert, statt sie
+                    # hochzuzaehlen. Damit kann kein Sticker doppelt entstehen,
+                    # selbst wenn die aufrufende Schicht sich irrt.
                     verbindung.execute(
                         """INSERT INTO kunde_sticker (kundennummer, motiv, anzahl)
                            VALUES (?, ?, 1)
-                           ON CONFLICT (kundennummer, motiv)
-                           DO UPDATE SET anzahl = anzahl + 1""",
+                           ON CONFLICT (kundennummer, motiv) DO NOTHING""",
                         (kundennummer, motiv),
                     )
-                # 5. Newsletter-Gutschein verbrauchen
+
+                # 5. Starterset gutschreiben - einmalig je Kunde (/F53/).
+                # Die Bedingung "starterset_erhalten = 0" ist die eigentliche
+                # Sperre: Selbst zwei gleichzeitige Kaeufe koennten das Set so
+                # nur ein einziges Mal vergeben.
+                if starterset:
+                    verbindung.execute(
+                        """UPDATE kunde
+                           SET starterset_erhalten = 1
+                           WHERE kundennummer = ? AND starterset_erhalten = 0""",
+                        (kundennummer,),
+                    )
+
+                # 6. Newsletter-Gutschein verbrauchen
                 if newsletter_rabatt_angewendet:
                     verbindung.execute(
                         """UPDATE kunde
@@ -129,6 +153,20 @@ class BestellRepository(BasisRepository):
         return bestellnummer
 
     # -- Bestellungen lesen ------------------------------------------------
+
+    def anzahl_bestellungen(self, kundennummer: int) -> int:
+        """Wie viele Einkaeufe hat dieser Kunde bisher abgeschlossen?
+
+        Grundlage fuer das Starterset-Sonderangebot (/F53/): Es gibt das Set
+        erst ab der dritten Bestellung. Geloeschte Kunden haben in ihren
+        Bestellungen ``kundennummer = NULL`` und zaehlen deshalb hier nicht
+        mehr mit (/F43/).
+        """
+        zeile = self.datenbank.abfragen_eine(
+            "SELECT COUNT(*) AS anzahl FROM bestellung WHERE kundennummer = ?",
+            (kundennummer,),
+        )
+        return zeile["anzahl"] if zeile else 0
 
     def laden(self, bestellnummer: int) -> Bestellung | None:
         """Laedt eine Bestellung samt ihrer Positionen."""

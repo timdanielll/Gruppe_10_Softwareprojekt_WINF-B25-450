@@ -14,6 +14,7 @@ Der lineare Ablauf aus /NF12/ bildet sich eins zu eins in den Methoden ab:
 from fanshop import konfiguration
 from fanshop.fehler import BestandsFehler, NichtGefundenFehler, ValidierungsFehler
 from fanshop.modelle.kunde import Kunde
+from fanshop.modelle import starterset as starterset_modell
 from fanshop.modelle import sticker as sticker_modell
 from fanshop.modelle.sonderaktion import Sonderaktion
 from fanshop.modelle.warenkorb import Preisuebersicht, Warenkorb
@@ -34,6 +35,7 @@ class Kaufbeleg:
         kundenname: str,
         motive: list | None = None,
         album_stand: tuple[int, int] | None = None,
+        starterset: bool = False,
     ) -> None:
         self.bestellnummer = bestellnummer
         self.uebersicht = uebersicht
@@ -43,6 +45,13 @@ class Kaufbeleg:
         self.motive = motive or []
         #: (verschiedene Motive, Gesamtzahl) nach diesem Einkauf.
         self.album_stand = album_stand
+        #: True, wenn diesem Kauf das Starterset beiliegt (/F53/).
+        self.starterset = starterset
+
+    @property
+    def starterset_inhalt(self) -> tuple[str, ...]:
+        """Was im Starterset steckt - leer, wenn es keins gab."""
+        return starterset_modell.INHALT if self.starterset else ()
 
     def __str__(self) -> str:
         return f"Bestellung {self.bestellnummer} über {self.uebersicht.gesamtbetrag:.2f} EUR"
@@ -160,10 +169,11 @@ class KassenService:
         2. Lagerbestand wird noch einmal frisch geprueft
         3. Bestellwert wird berechnet
         4. Alles wird in einer Transaktion gebucht (Bestellung, Positionen,
-           Lagerabgang, Sticker, Gutschein)
+           Lagerabgang, Sticker, Starterset, Gutschein)
         5. Warenkorb wird geleert, damit der naechste Kunde drankommt
 
-        :return: den Kaufbeleg mit Bestellnummer, Summen und Stickeranzahl
+        :return: den Kaufbeleg mit Bestellnummer, Summen, Stickern und dem
+                 Hinweis, ob das Starterset beiliegt
         """
         if self.warenkorb.ist_leer:
             raise ValidierungsFehler("Der Warenkorb ist leer - es gibt nichts zu buchen.")
@@ -171,14 +181,8 @@ class KassenService:
         self._bestand_erneut_pruefen()
 
         uebersicht = self.preisuebersicht()
-        sticker = konfiguration.STICKER_PRO_EINKAUF if self.aktiver_kunde else 0
-
-        # Welche drei Motive es sind, haengt am bisherigen Kontostand (/F53/).
-        motive = (
-            sticker_modell.motive_fuer_kauf(self.aktiver_kunde.sticker_kontostand, sticker)
-            if self.aktiver_kunde
-            else []
-        )
+        motive, starterset = self._praemien_bestimmen()
+        sticker = len(motive)
 
         bestellnummer = self.bestell_repository.kauf_verbuchen(
             kundennummer=self.aktiver_kunde.kundennummer if self.aktiver_kunde else None,
@@ -187,6 +191,7 @@ class KassenService:
             newsletter_rabatt_angewendet=self.newsletter_rabatt_anwenden,
             sticker=sticker,
             sticker_motive=[motiv.schluessel for motiv in motive],
+            starterset=starterset,
         )
 
         kundenname = self.aktiver_kunde.name if self.aktiver_kunde else "Laufkundschaft"
@@ -203,11 +208,75 @@ class KassenService:
                 self.kunden_repository.sticker_album(kundennummer)
             )
 
-        return Kaufbeleg(bestellnummer, uebersicht, sticker, kundenname, motive, album_stand)
+        return Kaufbeleg(
+            bestellnummer,
+            uebersicht,
+            sticker,
+            kundenname,
+            motive,
+            album_stand,
+            starterset,
+        )
+
+    def _praemien_bestimmen(self) -> tuple[list, bool]:
+        """Welche Sticker und welches Sonderangebot bringt dieser Kauf? (/F53/)
+
+        Laufkundschaft geht leer aus - ohne Kundenkonto gibt es niemanden, dem
+        man etwas gutschreiben koennte.
+
+        Fuer alle anderen entscheidet **das Album**, nicht der Zaehler: Es
+        werden genau die Motive vergeben, die noch fehlen - hoechstens
+        ``STICKER_PRO_EINKAUF`` Stueck. Wer schon alle sechs hat, bekommt
+        keinen Sticker mehr.
+
+        Das Starterset kommt oben drauf, sobald die Sammlung mit diesem Kauf
+        vollstaendig ist und der Kunde die noetige Zahl an Einkaeufen erreicht
+        hat - einmalig, siehe ``modelle/starterset.py``.
+
+        :return: (Motive dieses Kaufs, True wenn das Starterset beiliegt)
+        """
+        if self.aktiver_kunde is None:
+            return [], False
+
+        kundennummer = self.aktiver_kunde.kundennummer
+        album = self.kunden_repository.sticker_album(kundennummer)
+        motive = sticker_modell.offene_motive(album, konfiguration.STICKER_PRO_EINKAUF)
+
+        # So sieht das Album unmittelbar nach diesem Kauf aus.
+        album_danach = dict(album)
+        for motiv in motive:
+            album_danach[motiv.schluessel] = 1
+
+        starterset = starterset_modell.anspruch_besteht(
+            anzahl_bestellungen=self.bestell_repository.anzahl_bestellungen(kundennummer) + 1,
+            album=album_danach,
+            bereits_erhalten=self.kunden_repository.starterset_erhalten(kundennummer),
+        )
+        return motive, starterset
 
     def sticker_album(self, kundennummer: int) -> dict[str, int]:
         """Das Sammelalbum eines Kunden - Motivschluessel auf Anzahl (/F53/)."""
         return self.kunden_repository.sticker_album(kundennummer)
+
+    def starterset_vorschau(self) -> tuple[bool, bool]:
+        """Wie steht es fuer den aktiven Kunden um das Starterset? (/F53/)
+
+        Nur fuer die Anzeige in der Kasse - gebucht wird erst beim
+        Kaufabschluss.
+
+        :return: (schon erhalten, wuerde dieser Kauf es ausloesen)
+        """
+        if self.aktiver_kunde is None:
+            return False, False
+
+        bereits = self.kunden_repository.starterset_erhalten(
+            self.aktiver_kunde.kundennummer
+        )
+        if bereits or self.warenkorb.ist_leer:
+            return bereits, False
+
+        _, faellig = self._praemien_bestimmen()
+        return bereits, faellig
 
     def _bestand_erneut_pruefen(self) -> None:
         """Vergleicht jede Warenkorbposition mit dem aktuellen Lagerbestand.

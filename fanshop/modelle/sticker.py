@@ -1,18 +1,22 @@
 """Das Sticker-Sammelsystem (/F53/).
 
 Der Fanshop legt sechs verschiedene Stickermotive bei. Bei jedem Einkauf
-bekommt der Kunde **drei davon** - nicht dreimal dasselbe. Genau das macht aus
+bekommt der Kunde **zwei davon** - nicht zweimal dasselbe. Genau das macht aus
 einer Zahl auf dem Konto eine Sammlung, und genau darum geht es beim
 Gamification-Modul aus dem Pflichtenheft.
 
-Welche drei Motive es sind, wird **nicht ausgelost**, sondern der Reihe nach
-vergeben: Wer schon vier Sticker hat, bekommt als Nächstes Motiv 5, 6 und
-wieder 1. Zwei Vorteile:
+Drei Regeln bestimmen die Vergabe:
 
-* Nach zwei Einkäufen ist das Album garantiert einmal komplett - der Kunde
-  bekommt nie dreimal dasselbe Motiv hintereinander.
-* Das Verhalten ist wiederholbar und damit testbar. Ein Zufallsgenerator
-  würde jeden Test unzuverlässig machen.
+* **Feste Reihenfolge, kein Zufall.** Wer schon zwei Sticker hat, bekommt als
+  Naechstes Motiv 3 und 4. Das ist wiederholbar und damit testbar; ein
+  Zufallsgenerator wuerde jeden Test unzuverlaessig machen.
+* **Jedes Motiv nur einmal.** Ein Sticker, den der Kunde schon besitzt, wird
+  nie ein zweites Mal ausgegeben. Nach genau drei Einkaeufen ist die Sammlung
+  voll - danach gibt es keine Sticker mehr, sondern das Starterset
+  (siehe ``modelle/starterset.py``).
+* **Kein Mindestbestellwert.** Jeder abgeschlossene Kauf zaehlt, unabhaengig
+  vom Bestellwert. Nur Laufkundschaft ohne Kundenkonto geht leer aus - es gaebe
+  niemanden, dem man die Sticker gutschreiben koennte.
 """
 
 from fanshop import konfiguration
@@ -55,15 +59,39 @@ NACH_SCHLUESSEL = {motiv.schluessel: motiv for motiv in MOTIVE}
 def motive_fuer_kauf(bisheriger_kontostand: int, anzahl: int | None = None) -> list[Stickermotiv]:
     """Welche Motive bekommt ein Kunde beim nächsten Einkauf?
 
+    Die Vergabe laeuft die Liste ``MOTIVE`` von vorn nach hinten durch und
+    **wiederholt sich nicht**: Wer schon vier Sticker hat, bekommt Motiv 5 und
+    6 - und danach gar keine mehr.
+
     :param bisheriger_kontostand: wie viele Sticker der Kunde schon hat
-    :param anzahl: wie viele Sticker es diesmal gibt (Standard: 3, /F53/)
-    :return: Liste der Motive, in der Reihenfolge der Ausgabe
+    :param anzahl: wie viele Sticker es diesmal gibt (Standard: 2, /F53/)
+    :return: Liste der Motive, in der Reihenfolge der Ausgabe; leer, sobald die
+             Sammlung vollstaendig ist
     """
     if anzahl is None:
         anzahl = konfiguration.STICKER_PRO_EINKAUF
 
-    start = bisheriger_kontostand % len(MOTIVE)
-    return [MOTIVE[(start + schritt) % len(MOTIVE)] for schritt in range(anzahl)]
+    # Negative oder zu grosse Kontostaende sollen die Liste nicht sprengen.
+    bereits_vergeben = min(max(bisheriger_kontostand, 0), len(MOTIVE))
+    return MOTIVE[bereits_vergeben:bereits_vergeben + max(anzahl, 0)]
+
+
+def offene_motive(album: dict[str, int], anzahl: int | None = None) -> list[Stickermotiv]:
+    """Welche Motive fehlen dem Kunden noch - hoechstens ``anzahl`` Stueck?
+
+    Das ist die Vergabe, die beim echten Kauf benutzt wird. Sie fragt nicht den
+    Zaehler, sondern das Album selbst - so kann selbst dann kein Motiv doppelt
+    herausgehen, wenn Zaehler und Album einmal auseinanderlaufen sollten.
+
+    :param album: Woerterbuch Motivschluessel -> Anzahl (nur besessene Motive)
+    :param anzahl: wie viele Sticker es diesmal gibt (Standard: 2, /F53/)
+    :return: die fehlenden Motive in der Reihenfolge von ``MOTIVE``
+    """
+    if anzahl is None:
+        anzahl = konfiguration.STICKER_PRO_EINKAUF
+
+    fehlend = [motiv for motiv in MOTIVE if album.get(motiv.schluessel, 0) <= 0]
+    return fehlend[:max(anzahl, 0)]
 
 
 def album_fortschritt(album: dict[str, int]) -> tuple[int, int]:
@@ -74,3 +102,9 @@ def album_fortschritt(album: dict[str, int]) -> tuple[int, int]:
     """
     verschieden = sum(1 for anzahl in album.values() if anzahl > 0)
     return verschieden, len(MOTIVE)
+
+
+def album_vollstaendig(album: dict[str, int]) -> bool:
+    """True, wenn der Kunde alle sechs Motive besitzt - Bedingung fuers Starterset."""
+    verschieden, gesamt = album_fortschritt(album)
+    return verschieden >= gesamt

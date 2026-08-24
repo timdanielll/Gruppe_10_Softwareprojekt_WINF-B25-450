@@ -1,7 +1,7 @@
 """Seite „Kunden" - Kundenkartei (/F41/ bis /F44/, /F52/, /F53/).
 
 Links die Kartei mit Echtzeitsuche, rechts die Stammdatenmaske samt
-Newsletter-Anmeldung und Sticker-Kontostand.
+Newsletter-Anmeldung, Sammelalbum und Starterset-Stand.
 """
 
 import customtkinter as ctk
@@ -12,6 +12,8 @@ from fanshop.gui.basis_seite import BasisSeite
 from fanshop.gui.design import ABSTAND, farbe, schrift
 from fanshop.hilfsmittel import ganzzahl_aus_text, prozent
 from fanshop import konfiguration
+from fanshop.modelle import starterset as starterset_modell
+from fanshop.modelle import sticker as sticker_modell
 
 
 class KundenSeite(BasisSeite):
@@ -106,7 +108,7 @@ class KundenSeite(BasisSeite):
         # -- Newsletter (/F52/) und Sammelalbum (/F53/) ----------------
         ctk.CTkLabel(
             formular,
-            text="NEWSLETTER UND STICKER",
+            text="NEWSLETTER, STICKER UND SONDERANGEBOT",
             font=schrift("label"),
             text_color=farbe("text_leise"),
             anchor="w",
@@ -127,7 +129,7 @@ class KundenSeite(BasisSeite):
         stickerzeile.pack(fill="x", pady=(ABSTAND["sm"], ABSTAND["xs"]))
         ctk.CTkLabel(
             stickerzeile,
-            text="Sticker insgesamt",
+            text="Sammelsticker",
             font=schrift("text"),
             text_color=farbe("text_leise"),
             anchor="w",
@@ -142,7 +144,11 @@ class KundenSeite(BasisSeite):
         self.sticker_label.pack(side="right")
 
         self.album = bausteine.StickerAlbum(formular)
-        self.album.pack(fill="x", pady=(0, ABSTAND["sm"]))
+        self.album.pack(fill="x", pady=(0, ABSTAND["xs"]))
+
+        # Das Starterset-Sonderangebot (/F53/) - siehe modelle/starterset.py.
+        self.starterset_info = bausteine.Hinweis(formular, "", umbruch=340)
+        self.starterset_info.pack(fill="x", pady=(0, ABSTAND["sm"]))
 
     # ------------------------------------------------------------------
     # Daten
@@ -195,8 +201,11 @@ class KundenSeite(BasisSeite):
         self.strasse_feld.setzen(kunde.strasse)
         self.plz_feld.setzen(kunde.plz_text)
         self.ort_feld.setzen(kunde.ort)
-        self.sticker_label.configure(text=str(kunde.sticker_kontostand))
+        self.sticker_label.configure(
+            text=f"{kunde.sticker_kontostand} / {len(sticker_modell.MOTIVE)}"
+        )
         self.album.zeigen(self.anwendung.kunden_service.sticker_album(kundennummer))
+        self.starterset_info.configure(text=self._starterset_text(kundennummer))
 
         if kunde.newsletter_aktiv:
             self.newsletter_haken.select()
@@ -218,9 +227,34 @@ class KundenSeite(BasisSeite):
         self.plz_feld.leeren()
         self.ort_feld.leeren()
         self.newsletter_haken.deselect()
-        self.sticker_label.configure(text="0")
+        self.sticker_label.configure(text=f"0 / {len(sticker_modell.MOTIVE)}")
         self.album.zeigen({})
+        self.starterset_info.configure(text="")
         self.gutschein_info.configure(text="")
+
+    def _starterset_text(self, kundennummer: int) -> str:
+        """Wo der Kunde beim Starterset-Sonderangebot steht (/F53/)."""
+        stand = self.anwendung.kunden_service.starterset_stand(kundennummer)
+
+        if stand.erhalten:
+            return f"{starterset_modell.TITEL} erhalten: {starterset_modell.inhalt_text()}."
+        if stand.anspruch_offen:
+            return (
+                f"{starterset_modell.TITEL} steht zu — wird beim nächsten Kauf "
+                f"ausgegeben."
+            )
+
+        fehlend = stand.fehlende_bestellungen
+        if fehlend:
+            einkaeufe = "Einkauf" if fehlend == 1 else "Einkäufe"
+            return (
+                f"{starterset_modell.TITEL} ({starterset_modell.inhalt_text()}): "
+                f"noch {fehlend} {einkaeufe} bis zur vollen Sammlung."
+            )
+        return (
+            f"{starterset_modell.TITEL} ({starterset_modell.inhalt_text()}): "
+            f"Sammlung noch nicht vollständig."
+        )
 
     # ------------------------------------------------------------------
     # Aktionen

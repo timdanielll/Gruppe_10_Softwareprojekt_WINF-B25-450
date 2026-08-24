@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS kunde (
     ort                          TEXT    NOT NULL,
     newsletter_aktiv             INTEGER NOT NULL DEFAULT 0,  -- 0 = nein, 1 = ja
     newsletter_rabatt_verfuegbar INTEGER NOT NULL DEFAULT 0,  -- 1 = 10% noch offen
-    sticker_kontostand           INTEGER NOT NULL DEFAULT 0
+    sticker_kontostand           INTEGER NOT NULL DEFAULT 0,   -- hoechstens 6, jedes Motiv einmal
+    starterset_erhalten          INTEGER NOT NULL DEFAULT 0    -- 1 = Sonderangebot schon bekommen
 );
 
 
@@ -45,7 +46,8 @@ CREATE TABLE IF NOT EXISTS bestellung (
     zeitstempel                  INTEGER NOT NULL,  -- Unix-Zeit in Sekunden
     gesamtbetrag                 REAL    NOT NULL,  -- Endpreis nach allen Rabatten
     newsletter_rabatt_angewendet INTEGER NOT NULL DEFAULT 0,
-    sticker_ausgegeben           INTEGER NOT NULL DEFAULT 3,
+    sticker_ausgegeben           INTEGER NOT NULL DEFAULT 2,   -- 0 bis 2, je nach Sammelstand
+    starterset_ausgegeben        INTEGER NOT NULL DEFAULT 0,   -- 1 = Starterset lag bei (/F53/)
     FOREIGN KEY (kundennummer) REFERENCES kunde (kundennummer) ON DELETE SET NULL
 );
 
@@ -79,10 +81,15 @@ CREATE TABLE IF NOT EXISTS retoure (
 -- Die Spalte kunde.sticker_kontostand zaehlt nur, WIE VIELE Sticker jemand hat.
 -- Fuer das Sammelmodul (/F53/) muss man auch wissen, WELCHE - sonst gibt es
 -- keine Sammlung, sondern nur eine Zahl. Eine Zeile je Kunde und Motiv.
+--
+-- Jedes Motiv wird nur einmal vergeben, deshalb ist "anzahl" immer 1: Der
+-- Primaerschluessel laesst keine zweite Zeile zu, der CHECK keine zweite
+-- Gutschrift. Die Spalte bleibt erhalten, damit die Zaehlung im Album
+-- (SUM(anzahl)) weiterhin direkt mit kunde.sticker_kontostand vergleichbar ist.
 CREATE TABLE IF NOT EXISTS kunde_sticker (
     kundennummer INTEGER NOT NULL,
     motiv        TEXT    NOT NULL,        -- Schluessel aus modelle/sticker.py
-    anzahl       INTEGER NOT NULL DEFAULT 0,
+    anzahl       INTEGER NOT NULL DEFAULT 1 CHECK (anzahl = 1),
     PRIMARY KEY (kundennummer, motiv),
     FOREIGN KEY (kundennummer) REFERENCES kunde (kundennummer) ON DELETE CASCADE
 );

@@ -49,7 +49,9 @@ class Anwendung:
 
         # 3. Services (Geschaeftslogik)
         self.artikel_service = ArtikelService(self.artikel_repository)
-        self.kunden_service = KundenService(self.kunden_repository)
+        self.kunden_service = KundenService(
+            self.kunden_repository, self.bestell_repository
+        )
         self.kassen_service = KassenService(
             self.artikel_repository,
             self.kunden_repository,

@@ -62,6 +62,7 @@ class Bestellung:
         zeitstempel: int | None = None,
         newsletter_rabatt_angewendet: bool = False,
         sticker_ausgegeben: int = konfiguration.STICKER_PRO_EINKAUF,
+        starterset_ausgegeben: bool = False,
         kundenname: str | None = None,
         bestellnummer: int | None = None,
         positionen: list[Bestellposition] | None = None,
@@ -72,6 +73,8 @@ class Bestellung:
         self.gesamtbetrag = gesamtbetrag
         self.newsletter_rabatt_angewendet = newsletter_rabatt_angewendet
         self.sticker_ausgegeben = sticker_ausgegeben
+        # True, wenn dieser Bestellung das Starterset beilag (/F53/).
+        self.starterset_ausgegeben = starterset_ausgegeben
         self.kundenname = kundenname            # nur fuer die Anzeige
         self.positionen = positionen or []
 
@@ -97,6 +100,9 @@ class Bestellung:
             gesamtbetrag=zeile["gesamtbetrag"],
             newsletter_rabatt_angewendet=bool(zeile["newsletter_rabatt_angewendet"]),
             sticker_ausgegeben=zeile["sticker_ausgegeben"],
+            starterset_ausgegeben=bool(zeile["starterset_ausgegeben"])
+            if "starterset_ausgegeben" in schluessel
+            else False,
             kundenname=zeile["kundenname"] if "kundenname" in schluessel else None,
         )
 

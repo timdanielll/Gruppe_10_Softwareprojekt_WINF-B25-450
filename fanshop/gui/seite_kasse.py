@@ -17,6 +17,8 @@ from fanshop.gui import bausteine
 from fanshop.gui.basis_seite import BasisSeite
 from fanshop.gui.design import ABSTAND, farbe, schrift
 from fanshop.hilfsmittel import euro, ganzzahl_aus_text, prozent, zahl_aus_text
+from fanshop.modelle import starterset as starterset_modell
+from fanshop.modelle import sticker as sticker_modell
 
 ALLE_KATEGORIEN = "Alle Kategorien"
 
@@ -169,7 +171,13 @@ class KassenSeite(BasisSeite):
         self.kunde_name.configure(text=kunde.name)
         self.kunde_details.configure(
             text=f"Kundennummer {kunde.kundennummer}\n{kunde.anschrift}\n"
-                 f"{kunde.sticker_kontostand} Sticker gesammelt"
+                 f"{kunde.sticker_kontostand} von {len(sticker_modell.MOTIVE)} "
+                 f"Sammelstickern"
+                 + (
+                     f" · {starterset_modell.TITEL} erhalten"
+                     if kunde.starterset_erhalten
+                     else ""
+                 )
         )
         self.gutschein_kachel.configure(
             text=(
@@ -610,13 +618,39 @@ class KassenSeite(BasisSeite):
         )
         self._summen_zeichnen(self.abschluss_summen, kasse.preisuebersicht())
 
-        if kasse.aktiver_kunde:
-            self.sticker_vorschau.configure(
-                text=f"{konfiguration.STICKER_PRO_EINKAUF} Sammelsticker gehen an "
-                     f"{kasse.aktiver_kunde.name}."
-            )
+        self.sticker_vorschau.configure(text=self._praemien_vorschau_text())
+
+    def _praemien_vorschau_text(self) -> str:
+        """Was dieser Kauf an Stickern und Sonderangebot bringt (/F53/).
+
+        Steht vor dem Buchen im Schritt „Abschluss" — der Bediener soll dem
+        Kunden ankündigen können, was gleich über den Tresen geht.
+        """
+        kasse = self.anwendung.kassen_service
+        kunde = kasse.aktiver_kunde
+        if kunde is None:
+            return "Ohne Kundenkonto gibt es keine Sticker."
+
+        offen = len(sticker_modell.offene_motive(
+            kasse.sticker_album(kunde.kundennummer), konfiguration.STICKER_PRO_EINKAUF
+        ))
+        if offen == 0:
+            zeile = f"{kunde.name} hat bereits alle Sammelsticker."
+        elif offen == 1:
+            zeile = f"Der letzte fehlende Sammelsticker geht an {kunde.name}."
         else:
-            self.sticker_vorschau.configure(text="Ohne Kundenkonto gibt es keine Sticker.")
+            zeile = f"{offen} Sammelsticker gehen an {kunde.name}."
+
+        erhalten, faellig = kasse.starterset_vorschau()
+        if faellig:
+            grund = "Damit ist die Sammlung voll" if offen else "Die Sammlung ist voll"
+            zeile += (
+                f"\nSonderangebot: {grund} — {starterset_modell.TITEL} mit "
+                f"{starterset_modell.inhalt_text()} beilegen."
+            )
+        elif erhalten:
+            zeile += f"\n{starterset_modell.TITEL} wurde bereits ausgegeben."
+        return zeile
 
     def _kauf_abschliessen(self) -> None:
         kasse = self.anwendung.kassen_service
@@ -638,24 +672,38 @@ class KassenSeite(BasisSeite):
         self.schritt_zeigen(SCHRITT_KUNDE)
 
     def _sticker_dialog_zeigen(self, beleg) -> None:
-        """Bestätigt den Kauf und zeigt die drei Sammelsticker (/F53/)."""
-        if not beleg.motive:
+        """Bestätigt den Kauf und zeigt die Sammelsticker (/F53/).
+
+        Drei Fälle: kein Kundenkonto, ein Kauf mit neuen Stickern, oder ein
+        Kauf ohne — weil die Sammlung schon voll ist. Liegt das Starterset bei,
+        steht das in jedem Fall mit dabei.
+        """
+        kopf = (
+            f"Bestellung {beleg.bestellnummer} über "
+            f"{euro(beleg.uebersicht.gesamtbetrag)} ist gebucht und gilt als bezahlt."
+        )
+
+        if beleg.album_stand is None:
             bausteine.erfolg_zeigen(
                 self,
                 "Kauf abgeschlossen",
-                f"Bestellung {beleg.bestellnummer} über "
-                f"{euro(beleg.uebersicht.gesamtbetrag)} ist gebucht und gilt als bezahlt.\n\n"
-                "Ohne Kundenkonto werden keine Sticker ausgegeben.",
+                f"{kopf}\n\nOhne Kundenkonto werden keine Sticker ausgegeben.",
             )
             return
 
-        verschieden, gesamt = beleg.album_stand or (0, 0)
-        nachricht = (
-            f"Bestellung {beleg.bestellnummer} über {euro(beleg.uebersicht.gesamtbetrag)} "
-            f"ist gebucht und gilt als bezahlt.\n\n"
-            f"Bitte diese {len(beleg.motive)} Sticker an {beleg.kundenname} aushändigen. "
-            f"Sammlung: {verschieden} von {gesamt} Motiven."
-        )
+        verschieden, gesamt = beleg.album_stand
+        if beleg.motive:
+            mitte = (
+                f"Bitte diese {len(beleg.motive)} Sticker an {beleg.kundenname} "
+                f"aushändigen. Sammlung: {verschieden} von {gesamt} Motiven."
+            )
+        else:
+            mitte = (
+                f"{beleg.kundenname} hat bereits alle {gesamt} Motive — "
+                "es gibt keine weiteren Sticker."
+            )
+
+        nachricht = f"{kopf}\n\n{mitte}{self._starterset_zeile(beleg)}"
         bausteine.Dialog(
             self,
             "Kauf abgeschlossen",
@@ -664,6 +712,18 @@ class KassenSeite(BasisSeite):
             bilder=[motiv.pfad for motiv in beleg.motive],
             bild_beschriftungen=[motiv.titel for motiv in beleg.motive],
             ja_text="Erledigt",
+        )
+
+    @staticmethod
+    def _starterset_zeile(beleg) -> str:
+        """Der Hinweis auf das Sonderangebot - leer, wenn es keins gab (/F53/)."""
+        if not beleg.starterset:
+            return ""
+        return (
+            f"\n\nSonderangebot: Die Sammlung ist vollständig! "
+            f"{starterset_modell.TITEL} mit {starterset_modell.inhalt_text()} "
+            f"der Bestellung beilegen — es ist {beleg.kundenname} bereits "
+            f"gutgeschrieben."
         )
 
     # ==================================================================

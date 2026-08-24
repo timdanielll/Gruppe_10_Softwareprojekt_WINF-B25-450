@@ -365,6 +365,9 @@ class StickerAlbum(ctk.CTkFrame):
     Zeigt alle sechs Motive nebeneinander: die vorhandenen in Farbe, die
     fehlenden blass. Erst dadurch wird aus dem Zähler eine Sammlung — man
     sieht auf einen Blick, was noch fehlt.
+
+    Unter jedem Motiv steht ein Haken oder ein Strich, keine Stückzahl: Jeder
+    Sticker wird nur einmal vergeben, ein „2×" kann es also gar nicht geben.
     """
 
     def __init__(self, master, **kwargs) -> None:
@@ -387,7 +390,7 @@ class StickerAlbum(ctk.CTkFrame):
     def zeigen(self, album: dict[str, int]) -> None:
         """Zeichnet das Album neu.
 
-        :param album: Woerterbuch Motivschluessel -> Anzahl
+        :param album: Woerterbuch Motivschluessel -> Anzahl (immer 1)
         """
         from fanshop.modelle import sticker as sticker_modell
 
@@ -412,7 +415,7 @@ class StickerAlbum(ctk.CTkFrame):
 
             ctk.CTkLabel(
                 spalte,
-                text=f"{anzahl}×" if anzahl else "–",
+                text="✓" if anzahl else "–",
                 font=schrift("zahl_klein"),
                 text_color=farbe("text") if anzahl else farbe("text_leise"),
             ).pack()
@@ -1110,7 +1113,7 @@ class Dialog(ctk.CTkToplevel):
         self.wait_window()       # wartet, bis der Dialog geschlossen ist
 
     def _bilder_anzeigen(self, rahmen, pfade: list[Path], beschriftungen: list[str]) -> None:
-        """Zeigt eine Reihe von Bildern nebeneinander - z. B. drei Sticker (/F53/)."""
+        """Zeigt eine Reihe von Bildern nebeneinander - z. B. die Sticker eines Kaufs (/F53/)."""
         reihe = ctk.CTkFrame(rahmen, fg_color="transparent")
         reihe.pack(pady=(0, ABSTAND["md"]))
 
