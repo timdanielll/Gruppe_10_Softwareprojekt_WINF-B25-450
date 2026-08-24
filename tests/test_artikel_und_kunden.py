@@ -2,6 +2,7 @@
 
 import unittest
 
+from fanshop import konfiguration
 from fanshop.fehler import NichtGefundenFehler, ValidierungsFehler
 from fanshop.modelle.artikel import Artikel, Kleidungsartikel
 from tests.basis import FanshopTest
@@ -142,7 +143,7 @@ class KundenTest(FanshopTest):
 
         frisch = self.kunden_service.laden(kunde.kundennummer)
         self.assertEqual(frisch.ort, "Merzig")
-        self.assertEqual(frisch.sticker_kontostand, 3)
+        self.assertEqual(frisch.sticker_kontostand, konfiguration.STICKER_PRO_EINKAUF)
 
     def test_newsletter_anmeldung_schaltet_den_gutschein_frei(self):
         kunde = self.kunde_anlegen(newsletter=True)

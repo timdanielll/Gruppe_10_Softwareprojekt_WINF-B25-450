@@ -9,7 +9,8 @@ Beispielshop an:
 * fuenf Testkunden, davon zwei mit Newsletter-Gutschein
 * zwei vordefinierte Sonderaktionen (eine davon aktiv)
 * einige Beispielbestellungen der letzten Wochen, damit die Berichte und
-  Diagramme sofort etwas anzeigen
+  Diagramme sofort etwas anzeigen - eine Kundin hat dabei schon drei Einkaeufe
+  und damit die volle Stickersammlung samt Starterset (/F53/)
 
 Die Funktion tut **nichts**, wenn bereits Artikel vorhanden sind. Ein
 Programmstart ueberschreibt also niemals echte Daten.
@@ -20,7 +21,8 @@ import json
 from fanshop import konfiguration
 from fanshop.datenbank.verbindung import Datenbank
 from fanshop.hilfsmittel import heute_iso, jetzt_zeitstempel, runde_geld
-from fanshop.modelle.sticker import motive_fuer_kauf
+from fanshop.modelle import starterset as starterset_modell
+from fanshop.modelle.sticker import offene_motive
 
 SEKUNDEN_PRO_TAG = 24 * 60 * 60
 
@@ -136,14 +138,14 @@ def _artikel_anlegen(datenbank: Datenbank) -> None:
 
 def _kunden_anlegen(datenbank: Datenbank) -> None:
     zeilen = [
-        (name, strasse, plz, ort, 1 if newsletter else 0, 1 if newsletter else 0, 0)
+        (name, strasse, plz, ort, 1 if newsletter else 0, 1 if newsletter else 0, 0, 0)
         for name, strasse, plz, ort, newsletter in TEST_KUNDEN
     ]
     datenbank.ausfuehren_viele(
         """INSERT INTO kunde
                (name, strasse, plz, ort, newsletter_aktiv,
-                newsletter_rabatt_verfuegbar, sticker_kontostand)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                newsletter_rabatt_verfuegbar, sticker_kontostand, starterset_erhalten)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
         zeilen,
     )
 
@@ -162,12 +164,18 @@ def _aktionen_anlegen(datenbank: Datenbank) -> None:
 
 
 def _bestellungen_anlegen(datenbank: Datenbank) -> None:
-    """Legt acht Beispielbestellungen der letzten drei Wochen an.
+    """Legt neun Beispielbestellungen der letzten drei Wochen an.
 
     Diese Bestellungen werden direkt geschrieben und nicht ueber den
     KassenService gebucht - nur so lassen sich Zeitstempel in der
     Vergangenheit setzen, damit die Zeitraumfilter der Berichte etwas zu
     filtern haben.
+
+    Sticker und Starterset folgen dabei **genau denselben** Regeln wie ein
+    echter Kauf (/F53/): zwei neue Motive je Einkauf, jedes nur einmal, und
+    nach dem dritten Einkauf mit voller Sammlung das Starterset. Die erste
+    Kundin kommt deshalb auf drei Bestellungen - so ist beim allerersten Start
+    ein vollstaendiges Album samt vergebenem Sonderangebot zu sehen.
     """
     artikel = datenbank.abfragen(
         "SELECT artikel_id, preis, rabattsatz, lagerbestand FROM artikel ORDER BY artikel_id"
@@ -178,9 +186,13 @@ def _bestellungen_anlegen(datenbank: Datenbank) -> None:
 
     jetzt = jetzt_zeitstempel()
 
-    # Merkt sich je Kunde, wie viele Sticker er schon hat - daraus ergibt sich,
-    # welche Motive der naechste Einkauf bringt (siehe modelle/sticker.py).
-    stickerstand: dict[int, int] = {}
+    # Je Kunde: das mitwachsende Album, die Zahl der Einkaeufe und ob das
+    # Starterset schon heraus ist. Daraus ergeben sich die naechsten Motive und
+    # der Anspruch auf das Sonderangebot (modelle/sticker.py,
+    # modelle/starterset.py).
+    alben: dict[int, dict[str, int]] = {}
+    kaufzaehler: dict[int, int] = {}
+    startersets: dict[int, bool] = {}
 
     # (Tage in der Vergangenheit, Indizes der Artikel, Mengen, Kundenindex)
     bausteine = [
@@ -190,6 +202,7 @@ def _bestellungen_anlegen(datenbank: Datenbank) -> None:
         (10, [1, 2, 3], [1, 1, 1], 3),
         (7, [4], [3], 4),
         (4, [0, 4], [1, 1], 0),
+        (3, [3, 4], [1, 2], 0),   # dritter Einkauf: Album voll, Starterset faellig
         (2, [2, 3], [2, 1], 1),
         (1, [1], [4], 2),
     ]
@@ -208,16 +221,31 @@ def _bestellungen_anlegen(datenbank: Datenbank) -> None:
             gesamtbetrag = runde_geld(gesamtbetrag)
             kundennummer = kunden[kundenindex % len(kunden)]["kundennummer"]
 
+            # Sticker und Starterset nach denselben Regeln wie ein echter Kauf.
+            album = alben.setdefault(kundennummer, {})
+            motive = offene_motive(album, konfiguration.STICKER_PRO_EINKAUF)
+            for motiv in motive:
+                album[motiv.schluessel] = 1
+
+            kaeufe = kaufzaehler.get(kundennummer, 0) + 1
+            starterset = starterset_modell.anspruch_besteht(
+                anzahl_bestellungen=kaeufe,
+                album=album,
+                bereits_erhalten=startersets.get(kundennummer, False),
+            )
+
             cursor = verbindung.execute(
                 """INSERT INTO bestellung
                        (kundennummer, zeitstempel, gesamtbetrag,
-                        newsletter_rabatt_angewendet, sticker_ausgegeben)
-                   VALUES (?, ?, ?, 0, ?)""",
+                        newsletter_rabatt_angewendet, sticker_ausgegeben,
+                        starterset_ausgegeben)
+                   VALUES (?, ?, ?, 0, ?, ?)""",
                 (
                     kundennummer,
                     jetzt - tage * SEKUNDEN_PRO_TAG,
                     gesamtbetrag,
-                    konfiguration.STICKER_PRO_EINKAUF,
+                    len(motive),
+                    1 if starterset else 0,
                 ),
             )
             bestellnummer = cursor.lastrowid
@@ -237,17 +265,22 @@ def _bestellungen_anlegen(datenbank: Datenbank) -> None:
             verbindung.execute(
                 """UPDATE kunde SET sticker_kontostand = sticker_kontostand + ?
                    WHERE kundennummer = ?""",
-                (konfiguration.STICKER_PRO_EINKAUF, kundennummer),
+                (len(motive), kundennummer),
             )
 
-            # Dieselben Motive, die auch ein echter Kauf vergeben wuerde.
-            vorher = stickerstand.get(kundennummer, 0)
-            for motiv in motive_fuer_kauf(vorher, konfiguration.STICKER_PRO_EINKAUF):
+            for motiv in motive:
                 verbindung.execute(
                     """INSERT INTO kunde_sticker (kundennummer, motiv, anzahl)
                        VALUES (?, ?, 1)
-                       ON CONFLICT (kundennummer, motiv)
-                       DO UPDATE SET anzahl = anzahl + 1""",
+                       ON CONFLICT (kundennummer, motiv) DO NOTHING""",
                     (kundennummer, motiv.schluessel),
                 )
-            stickerstand[kundennummer] = vorher + konfiguration.STICKER_PRO_EINKAUF
+
+            if starterset:
+                verbindung.execute(
+                    "UPDATE kunde SET starterset_erhalten = 1 WHERE kundennummer = ?",
+                    (kundennummer,),
+                )
+
+            kaufzaehler[kundennummer] = kaeufe
+            startersets[kundennummer] = startersets.get(kundennummer, False) or starterset
