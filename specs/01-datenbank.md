@@ -9,6 +9,23 @@
 SQLite-Datei anlegen, Tabellen erzeugen, eine einzige Klasse für allen
 Datenbankzugriff bereitstellen.
 
+## SQL-Dump für die Abgabe
+
+Die Arbeitsdatenbank `fanshop.db` wird nicht versioniert, weil sie beim ersten
+Programmstart entsteht und sich während der Nutzung verändert. Für die Abgabe
+erzeugt `tools/erstelle_sql_dump.py` daraus den versionierten Export
+`docs/fanshop_dump.sql`:
+
+```bash
+python tools/erstelle_sql_dump.py
+```
+
+Das Skript verwendet ausschließlich `sqlite3.Connection.iterdump()` aus der
+Python-Standardbibliothek. Der erzeugte Dump enthält Schema und Daten und lässt
+sich mit `sqlite3 neue_fanshop.db < docs/fanshop_dump.sql` wiederherstellen.
+Er wird unmittelbar vor der Abgabe erneut erzeugt und gemeinsam mit dem
+Quellcode committed.
+
 ## Dateien
 
 | Datei | Zweck |

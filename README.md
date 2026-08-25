@@ -34,7 +34,7 @@ ohne Internet und ohne Server.
 Prüfen mit `python --version`.
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/timdanielll/Gruppe_10_Softwareprojekt_WINF-B25-450.git
 cd SoftwareprojektSoSe26
 pip install -r requirements.txt
 python main.py
@@ -76,6 +76,27 @@ python main.py
 ```bash
 python -m unittest discover -s tests -t . -v
 ```
+
+### SQL-Dump für die Abgabe
+
+Die laufende Datenbankdatei `fanshop.db` bleibt bewusst außerhalb des
+Repositorys. Für die Abgabe erzeugt dieses Skript einen vollständigen,
+SQLite-kompatiblen Dump mit Schema und Daten:
+
+```bash
+python tools/erstelle_sql_dump.py
+```
+
+Das Ergebnis liegt anschließend in
+[`docs/fanshop_dump.sql`](docs/fanshop_dump.sql). Der Dump kann zum Prüfen in
+eine neue Datenbank importiert werden:
+
+```bash
+sqlite3 neue_fanshop.db < docs/fanshop_dump.sql
+```
+
+Vor der finalen Abgabe das Skript nach dem letzten Datenstand erneut ausführen
+und den aktualisierten Dump mit committen.
 
 ---
 

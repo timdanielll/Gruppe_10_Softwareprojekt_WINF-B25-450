@@ -47,6 +47,21 @@ korrekt angezeigt werden.
 und Tausenderpunkt. `zahl_aus_text()` akzeptiert `"19,90"` **und** `"19.90"`,
 weil Kassenpersonal beides tippt.
 
+### 2.1.1 SQL-Dump für die Abgabe
+
+`tools/erstelle_sql_dump.py` erzeugt mit `sqlite3.Connection.iterdump()` den
+vollständigen SQLite-Export der aktuellen `fanshop.db`. Ohne Argumente schreibt
+es nach `docs/fanshop_dump.sql`; `--quelle` und `--ziel` erlauben bei Bedarf
+abweichende Pfade.
+
+```bash
+python tools/erstelle_sql_dump.py
+sqlite3 neue_fanshop.db < docs/fanshop_dump.sql
+```
+
+Der zweite Befehl dient als Wiederherstellungsprobe. `fanshop.db` selbst bleibt
+in `.gitignore`; der SQL-Dump wird für die Abgabe mit dem Quellcode committed.
+
 ### 2.2 Datenbankschicht
 
 | Datei | Zeilen | Inhalt |
